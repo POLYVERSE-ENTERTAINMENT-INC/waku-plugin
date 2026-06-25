@@ -8,7 +8,7 @@
       "name": "waku",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/waku"
       },
       "policy": {
         "installation": "AVAILABLE"

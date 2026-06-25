@@ -8,7 +8,7 @@
   "homepage": "https://github.com/POLYVERSE-ENTERTAINMENT-INC/waku-plugin",
   "keywords": ["waku", "playable", "game", "mobile", "content-creation", "multimodal"],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.codex.json",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Waku",
     "shortDescription": "Create & publish mobile playables on Waku",
