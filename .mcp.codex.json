@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "waku": {
+      "command": "./bin/waku",
+      "args": ["mcp", "serve"],
+      "cwd": "."
+    }
+  }
+}

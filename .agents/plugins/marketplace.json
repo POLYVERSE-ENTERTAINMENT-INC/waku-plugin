@@ -1,0 +1,19 @@
+{
+  "name": "waku",
+  "interface": {
+    "displayName": "Waku"
+  },
+  "plugins": [
+    {
+      "name": "waku",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Engineering"
+    }
+  ]
+}
