@@ -1,6 +1,6 @@
 # Waku plugin
 
-Create, adapt, publish and edit **mobile playable web content** on the [Waku](https://github.com/POLYVERSE-ENTERTAINMENT-INC) platform — directly from Claude Code (Codex support coming). Install once; you get the creation skills, the operations skill, the `waku` CLI, and the Waku multimodal MCP server, all wired up.
+Create, adapt, publish and edit **mobile playable web content** on the [Waku](https://github.com/POLYVERSE-ENTERTAINMENT-INC) platform — directly from **Claude Code and Codex**. Install once; you get the creation skills, the operations skill, the `waku` CLI, and the Waku multimodal MCP server, all wired up.
 
 ## What's inside
 
@@ -15,23 +15,32 @@ Create, adapt, publish and edit **mobile playable web content** on the [Waku](ht
 
 ## Install
 
-> The product monorepo is private, so this plugin lives in its own repo and is installed as a marketplace.
+One repo serves both hosts. The `waku` CLI is **not** shipped inside the plugin — a launcher / SessionStart hook installs it to `~/.waku` on first use (idempotent; skipped if already present). You log in once; the session auto-renews and you're never re-prompted while authenticated.
 
-**From GitHub** (once the repo is published):
+### Claude Code
 
 ```
 /plugin marketplace add POLYVERSE-ENTERTAINMENT-INC/waku-plugin
 /plugin install waku@waku
 ```
 
-**From a local clone** (for testing):
+Then start a new session. (Local testing: `/plugin marketplace add /absolute/path/to/waku-plugin`.)
+
+### Codex
 
 ```
-/plugin marketplace add /absolute/path/to/waku-plugin
-/plugin install waku@waku
+codex plugin marketplace add POLYVERSE-ENTERTAINMENT-INC/waku-plugin
 ```
 
-On first session after install, a SessionStart hook installs the `waku` CLI to `~/.waku` (idempotent — skipped if already present) and, if you're not logged in, prints a one-line hint. Nothing is re-installed on later sessions, and you're never auto-prompted to log in when already authenticated.
+Then enable the plugin: run `codex`, open `/plugins`, select **waku → Enable**
+(or add to `~/.codex/config.toml`):
+
+```toml
+[plugins."waku@waku"]
+enabled = true
+```
+
+Start a new `codex` session and the `waku` skills + MCP load automatically.
 
 ## First run
 
@@ -43,6 +52,19 @@ On first session after install, a SessionStart hook installs the `waku` CLI to `
 /waku:publish        # build + publish to your Feed
 /waku:edit           # pull a published playable, edit, re-publish
 ```
+
+## Try the full flow (acceptance)
+
+End-to-end, on either host:
+
+1. **Install** (above), then start a fresh session.
+2. `/waku:login` → browser → log in on the Waku website (one time).
+3. `/waku:create` → describe a small mobile playable; the agent scaffolds the platform template into a new folder, builds it, and generates any assets via the Waku MCP.
+4. `/waku:publish` → builds and publishes to your Waku Feed. You get back a `content_id` + `preview_url`.
+5. `/waku:edit` → pull it back, tweak `src/`, republish (same project, new version).
+6. `/waku:unpublish` / delete to clean up.
+
+**Expected result:** the playable lands on the platform — the project shows `published`, and `preview_url` serves the game (HTTP 200). On Codex, the same `waku` skills + multimodal MCP tools (`polyverse_*`) are available; publishing goes through the same `waku` CLI and backend.
 
 ## How it fits together
 
