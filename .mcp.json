@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "waku": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/waku",
+      "args": ["mcp", "serve"]
+    }
+  }
+}

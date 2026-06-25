@@ -1,0 +1,14 @@
+{
+  "name": "waku",
+  "owner": { "name": "Polyverse Entertainment" },
+  "metadata": {
+    "description": "Waku creator toolkit — create, adapt, publish and edit mobile playables from Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "waku",
+      "source": "./",
+      "description": "Waku creator toolkit: create / adapt / publish mobile playables from Claude Code."
+    }
+  ]
+}

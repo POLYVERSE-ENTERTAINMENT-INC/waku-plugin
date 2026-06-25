@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Waku plugin launcher.
+# Delegates every `waku ...` call to the real, self-updating Waku CLI installed at
+# ~/.waku, bootstrapping it on first use. The plugin does NOT ship the CLI binary
+# (Claude Code / Codex plugins can't); this thin shim downloads it on demand.
+#
+# stdout is reserved for command output (e.g. `waku mcp serve` speaks MCP over stdout),
+# so ALL bootstrap noise goes to stderr.
+set -euo pipefail
+
+WAKU_HOME="${WAKU_INSTALL_DIR:-$HOME/.waku}"
+REAL="$WAKU_HOME/bin/waku"
+INSTALL_URL="https://storage.googleapis.com/samantha-app-pv-samantha-site-artifacts-asia-east1/waku-cli/install.sh"
+
+if [ ! -x "$REAL" ]; then
+  echo "[waku] CLI not found — installing to $WAKU_HOME ..." >&2
+  if ! curl -fsSL "$INSTALL_URL" | WAKU_NO_LOGIN=1 WAKU_NO_MCP=1 WAKU_INSTALL_SKILLS=0 bash >&2; then
+    echo "[waku] install failed. Manually run: curl -fsSL $INSTALL_URL | bash" >&2
+    exit 127
+  fi
+fi
+
+exec "$REAL" "$@"
