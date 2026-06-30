@@ -12,7 +12,7 @@ The template is a static React app. React owns composition; Tailwind owns UI erg
 | Path | Responsibility |
 |---|---|
 | `src/main.tsx` | React entry; `createRoot` mounts the app into `#root` |
-| `src/App.tsx` | template-owned shell: `.bg-layer`, `.zone-c-safe`, `#playfield`, i18n boot |
+| `src/App.tsx` | template-owned shell: `.bg-layer`, `.stage`, `.safe-ui`, `.safe-center`, i18n boot |
 | `src/components/` | generated or MCP/design-system imported component-library code; empty by default except README |
 | `src/playable/` | content/game state machine, scoring/progress, timers, loop, result, replay, demo UI, probe surface |
 | `src/waku/` | WAKU / Polyverse content runtime package JS adapters and platform calls |
@@ -28,7 +28,9 @@ The template is a static React app. React owns composition; Tailwind owns UI erg
 - `base: "./"` in Vite config.
 - Locale fetches resolve through `document.baseURI`.
 - `.bg-layer` is full-bleed and hard-coded in `src/App.tsx`.
-- `.zone-c-safe` is hard-coded in `src/App.tsx` and contains player-critical UI only.
+- `.stage` is full-bleed and hard-coded in `src/App.tsx`; put the world/canvas/media/game scene here.
+- `.safe-ui` is hard-coded in `src/App.tsx` and contains player-critical UI only.
+- `.safe-center` centers readable/tappable content within `.safe-ui` and is pass-through except for real child controls.
 - `src/components/` remains available for generated/imported UI; the base scaffold does not import its own shell from there.
 - Gesture lock disables context menu, multi-touch pinch, drag, and selection except opted-in controls.
 - BGM is singleton and starts after user interaction.
@@ -66,11 +68,16 @@ Keep geometry as named CSS variables:
 --runtime-safe-bottom
 --waku-top-chrome
 --waku-bottom-chrome
---zone-c-top
---zone-c-bottom
+--safe-top
+--safe-bottom
+--safe-pad
+--safe-pad-top
+--safe-pad-bottom
+--safe-pad-left
+--safe-pad-right
 ```
 
-Use `.zone-c-safe` for:
+Use `.safe-ui` for:
 
 - CTA
 - HUD
@@ -79,13 +86,18 @@ Use `.zone-c-safe` for:
 - result card body
 - critical feedback
 
-Use full-bleed layer for:
+Use `.stage` for:
 
 - background/world/canvas
 - scene/camera/media
 - particles
+
+Use `.bg-layer` or an overlay peer for:
+
 - full-screen scrim/dim/vignette/transition
 - modal backdrop
+
+Do not put the entire world, board, canvas, or full-screen media inside `.safe-ui` just to pass safe-area checks. `.safe-ui` is for readable/tappable player-critical UI; `.stage` remains the full-bleed playfield.
 
 Do not render safe-area borders, labels, debug rulers, or fake phone shells in production.
 

@@ -42,7 +42,7 @@ cd ./<name>          # 之后所有创作都在这里
 
 1. **先问用户（必做，不可跳过）**：在写任何 Brief / Spec 或开始 build 之前，必须用 `AskUserQuestion`（本地原生工具）问 1–N 个真正影响产物的创意 / 玩法问题（玩法方向、受众、核心循环、结果 / 失败、语气语言…），并**等待用户回答**。收到任务后的第一个动作就是问。怎么问、问什么见 `references/intake-and-interaction.md`。
 2. **Spec + 设计**：把方向收敛成可实现的内容契约（状态机、UI 层、资产、文案 key、运行时 capability、Review 探针）；玩法 / 核心循环 / 引擎选择 / UI 方向 → 切到 `game-studio` skill。
-3. **写码**：在脚手架出的模板里写 React + Tailwind → 切到 `waku-react-tailwind` skill（src/ 目录、shell 不变量、safe-area、state 规则都在那）。
+3. **写码**：在脚手架出的模板里写 React + Tailwind → 切到 `waku-react-tailwind` skill（src/ 目录、shell 不变量、safe-area、state 规则都在那）。不要另起普通 Vite 项目；必须保留当前 session template 的 `.bg-layer` / `.stage` / `.safe-ui` 结构。
 4. **平台能力**（按内容需要）：生产期静态资产 → `polyverse_*` MCP 工具（description 即用法）；运行时实时能力（内容内 AI、排行榜、存档、分享、haptics）→ content-runtime SDK（`references/runtime-js.md`）。
 5. **Review**：跑机器底线（`npm run test`）+ 运行时 smoke + 移动 / 视觉检查，写结构化证据。
 6. **交付**：见下，所有 gate 过了才交付。
@@ -56,7 +56,7 @@ cd ./<name>          # 之后所有创作都在这里
 - 模板是 plain npm：**先 `npm install`**，再 `npm run test`（TS + 运行时契约 + build + 相对路径机器底线）。
 - 机器底线 + Review gate 都过后，发布：
   ```bash
-  npm install && npm run build           # 产出 public/
+  npm install && npm run test            # 契约检查 + 产出 public/
   waku publish --name "<name>" --site-dir public   # 发到 Feed，绑到用户自己的账号
   ```
   细节（首发 vs 原地 republish、二次编辑 pull、撤回 unpublish/delete）全在 `waku-cli` skill。
@@ -67,7 +67,7 @@ cd ./<name>          # 之后所有创作都在这里
 |---|---|
 | 玩法 / 核心循环 / 引擎 / 关卡 / 游戏向 UI | `game-studio` skill |
 | 设计评审 / 可达性 / UX 文案 / 设计系统 / 交接规格 / 用研 | `design` skill |
-| 写 / 改 React + Tailwind 代码、改 `.bg-layer` / `.zone-c-safe` 布局 | `waku-react-tailwind` skill |
+| 写 / 改 React + Tailwind 代码、改 `.bg-layer` / `.stage` / `.safe-ui` 布局 | `waku-react-tailwind` skill |
 | 生产期资产（生成图 / 音、编辑、抠图、压缩持久化）| `polyverse_*` MCP 工具（description 即用法；跨工具规则见 MCP server instructions）|
 | 运行时 AI / 排行榜 / 存档 / 分享 / haptics | `references/runtime-js.md`（content-runtime SDK）|
 | 问用户创意决策 | `references/intake-and-interaction.md`（`AskUserQuestion`）|
