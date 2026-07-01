@@ -31,18 +31,19 @@ rg -n "OPENAI_API_KEY|WAVESPEED_API_KEY|apiKey|Authorization|Bearer|api\.openai|
 | manifest | `index.html` 有 `<script type="application/polyverse-manifest">`，`capabilities[]` 与实际 `pv.*` 调用一一对应 |
 | runtime 包 | `index.html` 在 app 代码前加载 `vendor/polyverse-content-runtime.min.js` |
 | 红线 | 无 provider key / 直连 endpoint / session·MCP token / localhost AI（上面 `rg` 必须为空）|
-| 手机端 | 竖屏、触摸完成核心循环、安全区合规、有结果 / 失败 + 重玩；新/完整模板项目保留 `.bg-layer` / `.stage` / `.safe-ui` |
+| 手机端 | 竖屏、触摸完成核心循环、安全区合规、有结果 / 失败 + 重玩；新/完整模板项目保留 `.bg-layer` / `.stage` / `.safe-ui`；`src/index.css` 必须使用 `--runtime-safe-*`、`--waku-top-chrome`、`--waku-bottom-chrome`、`--safe-top`、`--safe-bottom` |
 | build | 优先 `npm install && npm run test`（模板项目会产出 `public/` 并跑契约检查）；已有普通项目没有 `test` 脚本时，不得直接发布，先走 `waku-adapt` 合入模板契约 |
 
 已有项目发布门禁：`waku publish` / `waku playground upload` 前必须通过插件脚本：
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
 ```
 
 在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败时要先适配，不要退回“普通静态托管”式上传。
 
-插件里的 `bin/waku` 会在调用真实 CLI 前自动执行这道门禁；手动运行脚本是为了提前看到失败原因。不要用真实 CLI 路径绕过插件 launcher。
+插件里的 `bin/waku` 会在调用真实 CLI 前自动执行 conformance + mobile visual host-chrome 两道门禁；手动运行脚本是为了提前看到失败原因。不要用真实 CLI 路径绕过插件 launcher。视觉门禁会模拟 Waku 顶部/底部宿主控件，并钻进 same-origin iframe 检查其中按钮、状态卡、提示、面板等可读/可点元素。
 
 ## 发布到 Feed（首发）
 
@@ -51,6 +52,7 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir 
 ```bash
 npm install && npm run test
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
 waku ls  # 首发新项目必须先查同名；同名 publish 会覆盖已有项目最新版
 waku publish --name "Pocket Beat" --site-dir public --description "A rhythm tap game"
 ```
@@ -63,6 +65,7 @@ waku publish --name "Pocket Beat" --site-dir public --description "A rhythm tap 
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
 waku playground upload --name "Debug build" --site-dir public --source-dir .
 ```
 
@@ -78,6 +81,7 @@ waku pull "我的游戏"          # 或 waku pull <project_id>；拉源码到新
 # ... 改 src/ ...
 npm install && npm run test   # 模板项目：检查契约并产出 public/
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
 waku publish                  # 在 pulled 目录里零参运行 = 原地 republish 这个项目
 ```
 

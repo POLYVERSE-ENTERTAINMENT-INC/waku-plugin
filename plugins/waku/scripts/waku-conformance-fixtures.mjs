@@ -52,7 +52,7 @@ function makeFixture(dir, kind) {
       ? `<div className="bg-layer" /><section className="stage"><iframe src="./legacy.html" /></section><main className="safe-ui"><section id="safe-center" className="safe-center"><div id="core-target" /></section></main>`
       : `<div className="bg-layer" /><section className="stage" /><main className="safe-ui"><section id="safe-center" className="safe-center"><div className="safe-frame"><iframe src="./legacy.html" /></div><div id="core-target" /></section></main>`;
   fs.writeFileSync(path.join(dir, "src", "App.tsx"), app);
-  fs.writeFileSync(path.join(dir, "src", "index.css"), `.bg-layer{} .stage{} .safe-ui{} .safe-center{} .core-target{} .safe-frame{}`);
+  fs.writeFileSync(path.join(dir, "src", "index.css"), `:root{--runtime-safe-top:0px;--runtime-safe-bottom:0px;--waku-top-chrome:56px;--waku-bottom-chrome:82px;--safe-top:calc(var(--runtime-safe-top) + var(--waku-top-chrome));--safe-bottom:var(--waku-bottom-chrome);} .bg-layer{} .stage{} .safe-ui{top:calc(var(--safe-top));bottom:calc(var(--safe-bottom));} .safe-center{} .core-target{} .safe-frame{}`);
   fs.writeFileSync(path.join(dir, "src", "playable", "usePlayableState.ts"), `registerWakuPreviewStates(); reportWakuPreviewState(); window.__WAKU_GAME__={}; window.__waku_debug={};`);
   fs.writeFileSync(path.join(dir, "src", "waku", "polyverse.ts"), `export {};`);
   fs.mkdirSync(path.join(dir, "scripts"), { recursive: true });
