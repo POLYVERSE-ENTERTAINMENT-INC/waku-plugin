@@ -54,9 +54,11 @@ cd ./<name>          # 之后所有创作都在这里
 - **源码布局**（src/ 目录职责、entry files、`App.tsx` shell 不变量）→ 见 `waku-react-tailwind` skill，按它组织，不要另起一套。
 - 先实现最小完整循环，再加资产 / 文案 / 平台调用 / 打磨。
 - 模板是 plain npm：**先 `npm install`**，再 `npm run test`（TS + 运行时契约 + build + 相对路径机器底线）。
+- 首次发布新项目必须先用 `waku ls` 或 `waku api GET /projects` 查重。`waku publish --name "<name>"` 在同一用户下遇到同名项目会更新已有项目最新版本，不会创建第二个同名项目；除非用户明确要求覆盖/republish，否则名称已存在时换一个唯一名称或先确认。
 - 机器底线 + Review gate 都过后，发布：
   ```bash
   npm install && npm run test            # 契约检查 + 产出 public/
+  waku ls                                # 查同名，避免误覆盖已有项目
   waku publish --name "<name>" --site-dir public   # 发到 Feed，绑到用户自己的账号
   ```
   细节（首发 vs 原地 republish、二次编辑 pull、撤回 unpublish/delete）全在 `waku-cli` skill。

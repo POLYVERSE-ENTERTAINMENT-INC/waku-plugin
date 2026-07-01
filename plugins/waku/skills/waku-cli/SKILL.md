@@ -32,22 +32,37 @@ rg -n "OPENAI_API_KEY|WAVESPEED_API_KEY|apiKey|Authorization|Bearer|api\.openai|
 | runtime 包 | `index.html` 在 app 代码前加载 `vendor/polyverse-content-runtime.min.js` |
 | 红线 | 无 provider key / 直连 endpoint / session·MCP token / localhost AI（上面 `rg` 必须为空）|
 | 手机端 | 竖屏、触摸完成核心循环、安全区合规、有结果 / 失败 + 重玩；新/完整模板项目保留 `.bg-layer` / `.stage` / `.safe-ui` |
-| build | 优先 `npm install && npm run test`（模板项目会产出 `public/` 并跑契约检查）；没有 `test` 脚本时才退到 `npm run build` + 最强可用本地检查 |
+| build | 优先 `npm install && npm run test`（模板项目会产出 `public/` 并跑契约检查）；已有普通项目没有 `test` 脚本时，不得直接发布，先走 `waku-adapt` 合入模板契约 |
+
+已有项目发布门禁：`waku publish` / `waku playground upload` 前必须通过插件脚本：
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+```
+
+在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败时要先适配，不要退回“普通静态托管”式上传。
+
+插件里的 `bin/waku` 会在调用真实 CLI 前自动执行这道门禁；手动运行脚本是为了提前看到失败原因。不要用真实 CLI 路径绕过插件 launcher。
 
 ## 发布到 Feed（首发）
 
-`waku publish` 发布**已经 build 好**的静态目录（CLI 不替你 build），绑到用户自己的账号：
+`waku publish` 发布**已经 build 好且通过 conformance gate** 的静态目录（CLI 不替你 build），绑到用户自己的账号：
 
 ```bash
 npm install && npm run test
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+waku ls  # 首发新项目必须先查同名；同名 publish 会覆盖已有项目最新版
 waku publish --name "Pocket Beat" --site-dir public --description "A rhythm tap game"
 ```
 
-成功后只把 `content_id` / `preview_url` 报告给用户。同一用户重复发布同名游戏 = 更新同一项目的最新版本。
+成功后只把 `content_id` / `preview_url` 报告给用户。同一用户重复发布同名游戏 = 更新同一项目的最新版本，不会创建第二个同名项目。用户要“创建/上传新项目”时，名称已存在就换唯一名称或先征得用户明确同意；只有用户明确要求覆盖/republish 时才允许同名发布。
+
+插件 launcher 也会做同名保护：不在 pulled 目录、且未设置 `WAKU_ALLOW_SAME_NAME_UPDATE=1` 时，发现同名项目会拒绝首发，避免误更新旧项目。
 
 ## 可分享 Preview（不进 Feed）
 
 ```bash
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
 waku playground upload --name "Debug build" --site-dir public --source-dir .
 ```
 
@@ -62,11 +77,13 @@ waku ls                       # 列出你的项目，找到要改的那个
 waku pull "我的游戏"          # 或 waku pull <project_id>；拉源码到新子目录 + 写 .waku/project.json
 # ... 改 src/ ...
 npm install && npm run test   # 模板项目：检查契约并产出 public/
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
 waku publish                  # 在 pulled 目录里零参运行 = 原地 republish 这个项目
 ```
 
 要点：
 - pulled 目录里有 `.waku/project.json`，`waku publish` 自动识别成 republish（同项目新版、repoint、`published_at` 不动）。
+- 不在 pulled 目录里时，不要用已有项目名发布新内容；先 `waku ls` 查重，避免误把新项目发成旧项目新版。
 - 一条 `waku publish` 同时发产物（`public/`，给玩家）+ 源码（供下次 pull），后端原子收口。
 - CLI **不替你 build**——必须先跑 `npm run test`（模板项目）或至少 `npm run build` 产出 `public/`，否则报错。
 

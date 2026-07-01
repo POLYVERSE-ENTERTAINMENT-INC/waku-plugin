@@ -1,0 +1,302 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+
+const args = process.argv.slice(2);
+
+function readFlag(name, fallback) {
+  const index = args.indexOf(name);
+  if (index === -1) return fallback;
+  const value = args[index + 1];
+  if (!value || value.startsWith("--")) {
+    fail(`Missing value for ${name}`);
+  }
+  return value;
+}
+
+const sourceDir = path.resolve(readFlag("--source-dir", process.cwd()));
+const siteDir = path.resolve(readFlag("--site-dir", path.join(sourceDir, "public")));
+
+const failures = [];
+const warnings = [];
+
+function fail(message) {
+  failures.push(message);
+}
+
+function warn(message) {
+  warnings.push(message);
+}
+
+function exists(filePath) {
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+}
+
+function readText(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+function walk(dir, options = {}) {
+  const results = [];
+  const ignoredDirs = new Set([
+    ".git",
+    "node_modules",
+    ".next",
+    ".nuxt",
+    ".svelte-kit",
+    "coverage",
+    ...(options.ignoredDirs ?? []),
+  ]);
+  const ignoredFiles = new Set(options.ignoredFiles ?? []);
+
+  function visit(current) {
+    let entries;
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (!ignoredDirs.has(entry.name)) visit(fullPath);
+      } else if (entry.isFile()) {
+        if (!ignoredFiles.has(entry.name)) results.push(fullPath);
+      }
+    }
+  }
+
+  visit(dir);
+  return results;
+}
+
+function readAllText(dir, options = {}) {
+  if (!exists(dir)) return "";
+  const extensions = new Set([
+    ".css",
+    ".html",
+    ".js",
+    ".jsx",
+    ".json",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".vue",
+    ".svelte",
+  ]);
+  return walk(dir, options)
+    .filter((file) => extensions.has(path.extname(file)))
+    .map((file) => {
+      try {
+        return `\n/* ${path.relative(dir, file)} */\n${readText(file)}`;
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+}
+
+function hasAny(text, needles) {
+  return needles.some((needle) => text.includes(needle));
+}
+
+function source(pathname) {
+  const filePath = path.join(sourceDir, pathname);
+  return exists(filePath) ? readText(filePath) : "";
+}
+
+function checkBuiltArtifact() {
+  if (!exists(siteDir)) {
+    fail(`Built site directory not found: ${siteDir}. Run the template build/test before publishing.`);
+    return;
+  }
+
+  const indexPath = path.join(siteDir, "index.html");
+  if (!exists(indexPath)) {
+    fail(`Built site is missing index.html: ${indexPath}`);
+    return;
+  }
+
+  const html = readText(indexPath);
+  if (!html.includes("application/polyverse-manifest")) {
+    fail("Built index.html is missing <script type=\"application/polyverse-manifest\">.");
+  }
+  if (!html.includes("polyverse-content-runtime.min.js")) {
+    fail("Built index.html does not load vendor/polyverse-content-runtime.min.js before the app.");
+  }
+  if (!html.includes("polyverse-capability-reference")) {
+    warn("Built index.html is missing polyverse-capability-reference; add it when capabilities are used.");
+  }
+  if (!exists(path.join(siteDir, "vendor", "polyverse-content-runtime.min.js"))) {
+    fail("Built artifact is missing vendor/polyverse-content-runtime.min.js.");
+  }
+}
+
+function checkTemplateContract() {
+  if (!exists(sourceDir)) {
+    fail(`Source directory not found: ${sourceDir}`);
+    return;
+  }
+
+  const sourceText = readAllText(sourceDir, {
+    ignoredDirs: ["public", "dist", "build", "out"],
+    ignoredFiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb"],
+  });
+  const builtText = readAllText(siteDir, {
+    ignoredDirs: ["assets", "locales", "vendor"],
+    ignoredFiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb"],
+  });
+  const combined = `${sourceText}\n${builtText}`;
+
+  const requiredMarkers = [
+    [".bg-layer", "template shell marker .bg-layer"],
+    [".stage", "template shell marker .stage"],
+    [".safe-ui", "template shell marker .safe-ui"],
+    ["safe-center", "template shell marker .safe-center"],
+    ["__WAKU_GAME__", "Waku probe window.__WAKU_GAME__"],
+    ["__waku_debug", "Waku debug hook window.__waku_debug"],
+  ];
+
+  for (const [needle, label] of requiredMarkers) {
+    if (!combined.includes(needle)) fail(`Missing ${label}. Adapt the project through the Waku session template before publishing.`);
+  }
+
+  if (!hasAny(combined, ["registerWakuPreviewStates", "reportWakuPreviewState"])) {
+    fail("Missing preview-state registration/reporting hooks from the Waku template.");
+  }
+
+  if (!exists(path.join(sourceDir, "src", "waku"))) {
+    fail("Missing src/waku adapter directory. Existing projects must be adapted into the Waku template contract before publishing.");
+  }
+
+  checkAdaptationStructure();
+
+  const packagePath = path.join(sourceDir, "package.json");
+  if (!exists(packagePath)) {
+    fail("Missing package.json. Publishable Waku projects should be adapted into the session template and expose npm run test.");
+    return;
+  }
+
+  let packageJson;
+  try {
+    packageJson = JSON.parse(readText(packagePath));
+  } catch {
+    fail("package.json is not valid JSON.");
+    return;
+  }
+
+  const testScript = packageJson.scripts?.test ?? "";
+  if (!testScript) {
+    fail("package.json is missing scripts.test. Template contract checks must run before publishing.");
+  } else if (!testScript.includes("runtime-contract-check")) {
+    warn("scripts.test does not mention runtime-contract-check.js; ensure the equivalent template floor is covered.");
+  }
+}
+
+function checkAdaptationStructure() {
+  const appSource = source("src/App.tsx") || source("src/App.jsx") || source("src/App.js");
+  if (!appSource) {
+    fail("Missing src/App.* template shell. Adapt the project through the Waku session template before publishing.");
+    return;
+  }
+
+  const appRequiredMarkers = [
+    [/\bclassName=["'][^"']*\bbg-layer\b/i, "src/App.* .bg-layer shell element"],
+    [/\bclassName=["'][^"']*\bstage\b/i, "src/App.* .stage shell element"],
+    [/\bclassName=["'][^"']*\bsafe-ui\b/i, "src/App.* .safe-ui shell element"],
+    [/\bclassName=["'][^"']*\bsafe-center\b/i, "src/App.* .safe-center shell element"],
+  ];
+  for (const [pattern, label] of appRequiredMarkers) {
+    if (!pattern.test(appSource)) fail(`Missing ${label}. Marker strings in unrelated files do not satisfy the Waku template contract.`);
+  }
+
+  const stageBlocks = [
+    ...appSource.matchAll(/<([A-Za-z][\w.]*)\b(?=[^>]*className=["'][^"']*\bstage\b[^"']*["'])(?![^>]*\/>)[^>]*>([\s\S]*?)<\/\1>/gi),
+  ];
+  const stageWithIframe = stageBlocks.some((match) => /<iframe\b/i.test(match[2]));
+  if (stageWithIframe) {
+    fail(
+      "Iframe-based adaptation places the existing game inside .stage. .stage is full-bleed and may cross host chrome; readable/tappable existing UI must be constrained inside .safe-ui/.safe-center or ported into React components.",
+    );
+  }
+
+  const hasIframe = /<iframe\b/i.test(appSource);
+  if (hasIframe) {
+    const safeCenterWithIframe = /className=["'][^"']*\bsafe-center\b[^"']*["'][\s\S]{0,2200}<iframe\b/i.test(appSource);
+    const safeWrapperWithIframe = /className=["'][^"']*(?:safe|card|panel|viewport|frame)[^"']*["'][\s\S]{0,1400}<iframe\b/i.test(appSource);
+    if (!safeCenterWithIframe && !safeWrapperWithIframe) {
+      fail(
+        "Iframe-based adaptation must put the embedded game inside a bounded safe-area wrapper, not as an unconstrained full-screen page.",
+      );
+    }
+
+    const cssText = source("src/index.css");
+    const unsafeIframeCss = /\.stage\s+iframe\b[\s\S]{0,500}(?:position\s*:\s*fixed|inset\s*:\s*0|height\s*:\s*100vh)/i.test(cssText);
+    if (unsafeIframeCss) {
+      fail("Iframe CSS makes the embedded existing game full-bleed inside .stage; constrain it inside .safe-ui/.safe-center instead.");
+    }
+  }
+}
+
+function checkRedLines() {
+  const ignoredFiles = [
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "bun.lockb",
+    "runtime-contract-check.js",
+    "waku-conformance-check.mjs",
+  ];
+  const scanText = [
+    readAllText(sourceDir, {
+      ignoredDirs: [".git", "node_modules", "public", "dist", "build", "out", "vendor", "scripts"],
+      ignoredFiles,
+    }),
+    readAllText(siteDir, {
+      ignoredDirs: ["vendor"],
+      ignoredFiles,
+    }),
+  ].join("\n");
+
+  const redLines = [
+    /OPENAI_API_KEY/,
+    /WAVESPEED_API_KEY/,
+    /apiKey\s*[:=]/,
+    /Authorization\s*[:=]/,
+    /Bearer\s+[A-Za-z0-9._-]+/,
+    /api\.openai/,
+    /replicate\.com/,
+    /\/v1\/llm/,
+    /localhost/,
+    /127\.0\.0\.1/,
+  ];
+
+  const hit = redLines.find((pattern) => pattern.test(scanText));
+  if (hit) {
+    fail(`Red-line scan matched ${hit}. Remove provider keys, direct AI endpoints, local services, and raw tokens before publishing.`);
+  }
+}
+
+checkBuiltArtifact();
+checkTemplateContract();
+checkRedLines();
+
+for (const message of warnings) {
+  console.warn(`WARN ${message}`);
+}
+
+if (failures.length > 0) {
+  console.error("Waku conformance check failed:");
+  for (const message of failures) {
+    console.error(`- ${message}`);
+  }
+  process.exit(1);
+}
+
+console.log("Waku conformance check passed.");

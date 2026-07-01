@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+
+const root = path.dirname(path.dirname(new URL(import.meta.url).pathname));
+const checker = path.join(root, "scripts", "waku-conformance-check.mjs");
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "waku-fixtures-"));
+
+try {
+  const cases = [
+    { name: "valid-safe-iframe", kind: "valid", expect: 0 },
+    { name: "bad-stage-iframe", kind: "stageIframe", expect: 1 },
+    { name: "plain-vite", kind: "plain", expect: 1 },
+  ];
+
+  for (const item of cases) {
+    const dir = path.join(tmp, item.name);
+    makeFixture(dir, item.kind);
+    const result = spawnSync(process.execPath, [checker, "--source-dir", dir, "--site-dir", path.join(dir, "public")], {
+      encoding: "utf8",
+    });
+    const pass = item.expect === 0 ? result.status === 0 : result.status !== 0;
+    if (!pass) {
+      console.error(`fixture ${item.name} failed expectation`);
+      console.error(result.stdout);
+      console.error(result.stderr);
+      process.exit(1);
+    }
+    console.log(`fixture ok: ${item.name}`);
+  }
+} finally {
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
+
+function makeFixture(dir, kind) {
+  fs.mkdirSync(path.join(dir, "src", "playable"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "src", "waku"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "public", "vendor"), { recursive: true });
+
+  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({
+    private: true,
+    scripts: { test: "node scripts/runtime-contract-check.js" },
+    dependencies: { react: "x", "react-dom": "x" },
+    devDependencies: { tailwindcss: "x", "@vitejs/plugin-react": "x", "@tailwindcss/vite": "x" },
+  }, null, 2));
+
+  const app = kind === "plain"
+    ? `<div>Hello</div>`
+    : kind === "stageIframe"
+      ? `<div className="bg-layer" /><section className="stage"><iframe src="./legacy.html" /></section><main className="safe-ui"><section id="safe-center" className="safe-center"><div id="core-target" /></section></main>`
+      : `<div className="bg-layer" /><section className="stage" /><main className="safe-ui"><section id="safe-center" className="safe-center"><div className="safe-frame"><iframe src="./legacy.html" /></div><div id="core-target" /></section></main>`;
+  fs.writeFileSync(path.join(dir, "src", "App.tsx"), app);
+  fs.writeFileSync(path.join(dir, "src", "index.css"), `.bg-layer{} .stage{} .safe-ui{} .safe-center{} .core-target{} .safe-frame{}`);
+  fs.writeFileSync(path.join(dir, "src", "playable", "usePlayableState.ts"), `registerWakuPreviewStates(); reportWakuPreviewState(); window.__WAKU_GAME__={}; window.__waku_debug={};`);
+  fs.writeFileSync(path.join(dir, "src", "waku", "polyverse.ts"), `export {};`);
+  fs.mkdirSync(path.join(dir, "scripts"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "scripts", "runtime-contract-check.js"), "");
+
+  fs.writeFileSync(path.join(dir, "public", "index.html"), `<!doctype html><script type="application/polyverse-manifest">{"runtime":"@polyverse/content-runtime@1","capabilities":[]}</script><script type="application/json" id="polyverse-capability-reference" data-reference-only="true">{"referenceOnly":true,"capabilities":[]}</script><script src="./vendor/polyverse-content-runtime.min.js"></script>`);
+  fs.writeFileSync(path.join(dir, "public", "vendor", "polyverse-content-runtime.min.js"), "Polyverse");
+}

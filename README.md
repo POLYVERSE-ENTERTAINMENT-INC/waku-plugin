@@ -7,8 +7,8 @@ Create, adapt, publish and edit **mobile playable web content** on the [Waku](ht
 | Piece | What it does |
 |---|---|
 | **`waku` skill** | Knowledge for creating a new playable from scratch (intake → spec → React/Tailwind build → assets). |
-| **`waku-adapt` skill** | Knowledge for adapting an **existing** local game: replace its AI calls with the platform runtime SDK, strip secrets, apply mobile constraints. |
-| **`waku-cli` skill** | The publish lifecycle: login, publish to Feed, shareable preview, pull → edit → republish, unpublish, delete, plus the pre-publish conformance check. |
+| **`waku-adapt` skill** | Knowledge for adapting an **existing** local game: merge the session-template contract, replace AI calls with the platform runtime SDK, strip secrets, apply mobile constraints. |
+| **`waku-cli` skill** | The publish lifecycle: login, publish to Feed, shareable preview, pull → edit → republish, unpublish, delete, plus the mandatory pre-publish conformance gate. |
 | **`waku` CLI** | The engine for every authenticated action. Not shipped in the plugin — the launcher installs it to `~/.waku` on first use. |
 | **`waku` MCP** | Multimodal generation (image / music / sfx / speech / video) used during creation. Auto-registered via `.mcp.json`; reuses your login, mints tokens on demand. |
 | **Slash commands** | `/waku:login`, `/waku:create`, `/waku:adapt`, `/waku:publish`, `/waku:edit`. |
@@ -60,9 +60,29 @@ End-to-end, on either host:
 1. **Install** (above), then start a fresh session.
 2. `/waku:login` → browser → log in on the Waku website (one time).
 3. `/waku:create` → describe a small mobile playable; the agent scaffolds the platform template into a new folder, builds it, and generates any assets via the Waku MCP.
-4. `/waku:publish` → builds and publishes to your Waku Feed. You get back a `content_id` + `preview_url`.
+4. `/waku:publish` → builds, runs the conformance gate, and publishes to your Waku Feed. You get back a `content_id` + `preview_url`.
 5. `/waku:edit` → pull it back, tweak `src/`, republish (same project, new version).
 6. `/waku:unpublish` / delete to clean up.
+
+Existing local games must pass the same floor before upload. The plugin launcher now runs this gate automatically before `waku publish` and `waku playground upload`, and you can run it manually:
+
+```
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+```
+
+If this fails, route through `/waku:adapt`; do not publish a plain Vite/HTML project as a Waku playable.
+
+For mobile visual evidence, run:
+
+```
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+```
+
+For plugin regression fixtures:
+
+```
+node scripts/waku-conformance-fixtures.mjs
+```
 
 **Expected result:** the playable lands on the platform — the project shows `published`, and `preview_url` serves the game (HTTP 200). On Codex, the same `waku` skills + multimodal MCP tools (`polyverse_*`) are available; publishing goes through the same `waku` CLI and backend.
 
@@ -70,6 +90,7 @@ End-to-end, on either host:
 
 - **Skills = knowledge** (bundled, static, updated via `/plugin update`).
 - **CLI = actions** (login / publish / pull / republish / unpublish / delete) — one self-updating binary at `~/.waku`, reused by both the commands and the MCP server.
+- **Launcher = plugin guard** — `bin/waku` wraps the real CLI and blocks publish/upload when the local conformance gate fails. On first publish, it also checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
 - **MCP = capability** (asset generation during creation) — `waku mcp serve`, zero token in config, reuses your login.
 - One `~/.config/waku/auth.json` ties it all together: log in once.
 

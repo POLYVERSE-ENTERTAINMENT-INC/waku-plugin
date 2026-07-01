@@ -11,6 +11,7 @@ set -euo pipefail
 WAKU_HOME="${WAKU_INSTALL_DIR:-$HOME/.waku}"
 REAL="$WAKU_HOME/bin/waku"
 INSTALL_URL="https://storage.googleapis.com/samantha-app-pv-samantha-site-artifacts-asia-east1/waku-cli/install.sh"
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [ ! -x "$REAL" ]; then
   echo "[waku] CLI not found — installing to $WAKU_HOME ..." >&2
@@ -18,6 +19,78 @@ if [ ! -x "$REAL" ]; then
     echo "[waku] install failed. Manually run: curl -fsSL $INSTALL_URL | bash" >&2
     exit 127
   fi
+fi
+
+arg_value() {
+  local key="$1"
+  local fallback="$2"
+  shift 2
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "$key" ]; then
+      if [ "$#" -lt 2 ]; then
+        echo "$fallback"
+        return 0
+      fi
+      echo "$2"
+      return 0
+    fi
+    shift
+  done
+  echo "$fallback"
+}
+
+run_conformance_gate() {
+  local source_dir="$1"
+  local site_dir="$2"
+  local check_script="$PLUGIN_ROOT/scripts/waku-conformance-check.mjs"
+  if [ ! -f "$check_script" ]; then
+    echo "[waku] conformance gate missing: $check_script" >&2
+    exit 1
+  fi
+  echo "[waku] running conformance gate..." >&2
+  node "$check_script" --source-dir "$source_dir" --site-dir "$site_dir" >&2
+}
+
+check_same_name_publish() {
+  local name="$1"
+  if [ -z "$name" ] || [ "${WAKU_ALLOW_SAME_NAME_UPDATE:-0}" = "1" ] || [ -f ".waku/project.json" ]; then
+    return 0
+  fi
+
+  local projects_json
+  if ! projects_json="$("$REAL" ls)"; then
+    echo "[waku] failed to check existing projects before first publish; refusing to risk a same-name update." >&2
+    echo "[waku] run 'waku ls' yourself, or set WAKU_ALLOW_SAME_NAME_UPDATE=1 only when updating intentionally." >&2
+    exit 1
+  fi
+
+  if printf '%s' "$projects_json" | WAKU_PUBLISH_NAME="$name" node -e '
+const fs = require("node:fs");
+const input = fs.readFileSync(0, "utf8");
+const target = process.env.WAKU_PUBLISH_NAME;
+let data;
+try { data = JSON.parse(input); } catch { process.exit(1); }
+const projects = Array.isArray(data.projects) ? data.projects : [];
+const hit = projects.find((p) => p && p.name === target && p.publication_status !== "deleted");
+if (!hit) process.exit(1);
+console.error(`[waku] project name already exists: ${target} (${hit.id}, ${hit.publication_status || "unknown"})`);
+process.exit(0);
+'; then
+    echo "[waku] refusing first publish because this name would update an existing project." >&2
+    echo "[waku] choose a unique name, pull the existing project and republish, or set WAKU_ALLOW_SAME_NAME_UPDATE=1 if replacement is intentional." >&2
+    exit 1
+  fi
+}
+
+if [ "${1:-}" = "publish" ]; then
+  site_dir="$(arg_value --site-dir public "$@")"
+  run_conformance_gate "." "$site_dir"
+  publish_name="$(arg_value --name "" "$@")"
+  check_same_name_publish "$publish_name"
+elif [ "${1:-}" = "playground" ] && [ "${2:-}" = "upload" ]; then
+  site_dir="$(arg_value --site-dir public "$@")"
+  source_dir="$(arg_value --source-dir . "$@")"
+  run_conformance_gate "$source_dir" "$site_dir"
 fi
 
 exec "$REAL" "$@"
