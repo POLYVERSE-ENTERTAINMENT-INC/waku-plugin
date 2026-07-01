@@ -1,6 +1,6 @@
 {
   "name": "waku",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Create, adapt, publish and edit mobile playable web content with Waku. Bundles the Waku creation + adaptation skills, a CLI operations skill, and the Waku multimodal MCP server.",
   "author": { "name": "Polyverse Entertainment" },
   "homepage": "https://github.com/POLYVERSE-ENTERTAINMENT-INC/waku-plugin",

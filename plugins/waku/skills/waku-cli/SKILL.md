@@ -45,6 +45,8 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public 
 
 插件里的 `bin/waku` 会在调用真实 CLI 前自动执行 conformance + mobile visual host-chrome 两道门禁；手动运行脚本是为了提前看到失败原因。不要用真实 CLI 路径绕过插件 launcher。视觉门禁会模拟 Waku 顶部/底部宿主控件，并钻进 same-origin iframe 检查其中按钮、状态卡、提示、面板等可读/可点元素。
 
+禁止用 `waku api` 做 playable 上传、deployment/publication 状态切换、`preview_ready` → `published` 这类发布链路写操作；这些写操作会绕过本地门禁。插件 launcher 会拒绝疑似上传/发布状态 mutation 的 `waku api` 调用。需要上传预览用 `waku playground upload`，需要发 Feed 用 `waku publish`。
+
 ## 发布到 Feed（首发）
 
 `waku publish` 发布**已经 build 好且通过 conformance gate** 的静态目录（CLI 不替你 build），绑到用户自己的账号：

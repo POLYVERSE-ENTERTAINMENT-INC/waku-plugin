@@ -131,6 +131,8 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public 
 
 在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败就是 blocker：继续改到通过为止，不要绕过后直接 `waku publish` / `waku playground upload`。插件 launcher 发布前也会自动执行这两道门禁。通过后按 `waku-cli` skill 发布，并在平台里点一下真的生成验过。
 
+不得用 `waku api` 直接上传 playable、改 deployment/publication 状态，或把 `preview_ready` 转成 `published`。上传前、发布前都必须走同一套 gate；预览上传用 `waku playground upload`，Feed 发布用 `waku publish`。
+
 视觉验收是必需项，不是可选项：用移动视口（建议 `390x844`）检查 `.safe-ui`、游戏根节点、iframe/canvas、主要按钮和棋盘/核心交互区域的 bounding box。除了非文字的 full-bleed 世界层，核心可读/可点内容不得越出 `.safe-ui`，不得被宿主顶部/底部 chrome 遮挡；如果截图看起来仍像原裸页面，只是套了 runtime，就是失败。插件视觉脚本默认按模板契约模拟顶部 `56px`、底部 `82px` 宿主保留区，并检查 same-origin iframe 内的按钮、HUD、状态卡、提示和结果面板。
 
 优先使用插件脚本生成证据：

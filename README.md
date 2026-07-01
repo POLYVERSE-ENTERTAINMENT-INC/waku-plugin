@@ -73,6 +73,8 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public 
 
 If this fails, route through `/waku:adapt`; do not publish a plain Vite/HTML project as a Waku playable.
 
+Do not use `waku api` to upload a playable, mutate deployment/publication status, or convert `preview_ready` to `published`. Those writes bypass upload/publish gates, so the launcher refuses suspicious direct API mutations; use `waku playground upload` or `waku publish`.
+
 The visual gate simulates Waku native top/bottom chrome and inspects same-origin iframe contents for readable/tappable UI such as HUD, score cards, buttons, hints, and result panels. For mobile visual evidence only, run:
 
 ```
@@ -91,7 +93,7 @@ node scripts/waku-conformance-fixtures.mjs
 
 - **Skills = knowledge** (bundled, static, updated via `/plugin update`).
 - **CLI = actions** (login / publish / pull / republish / unpublish / delete) — one self-updating binary at `~/.waku`, reused by both the commands and the MCP server.
-- **Launcher = plugin guard** — `bin/waku` wraps the real CLI and blocks publish/upload when the local conformance or mobile visual host-chrome gate fails. On first publish, it also checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
+- **Launcher = plugin guard** — `bin/waku` wraps the real CLI and blocks publish/upload when the local conformance or mobile visual host-chrome gate fails. It also refuses direct `waku api` mutations that look like playable uploads or publication/deployment status changes. On first publish, it checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
 - **MCP = capability** (asset generation during creation) — `waku mcp serve`, zero token in config, reuses your login.
 - One `~/.config/waku/auth.json` ties it all together: log in once.
 

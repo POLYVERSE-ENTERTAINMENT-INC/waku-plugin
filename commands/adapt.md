@@ -26,7 +26,8 @@ The user already has a local game/app they want to put on Waku. Use the **waku-a
    node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
    ```
    Treat failures as blockers. Existing projects are publishable only after they satisfy the same template floor as Waku-created projects.
-10. Before publishing, do a real mobile visual check at about `390x844`: record the bounds of `.safe-ui`, the game root, and any iframe/canvas. The playable content must fit inside `.safe-ui` unless it is non-readable full-bleed background/world art. The plugin visual gate simulates Waku top/bottom host chrome and fails nested iframe HUD/buttons/status cards that intersect it.
-11. Publish via the **waku-cli** skill.
+10. Never use `waku api` to upload the playable or flip preview/deployment/publication status. Uploading and publishing both must go through the launcher gates.
+11. Before publishing, do a real mobile visual check at about `390x844`: record the bounds of `.safe-ui`, the game root, and any iframe/canvas. The playable content must fit inside `.safe-ui` unless it is non-readable full-bleed background/world art. The plugin visual gate simulates Waku top/bottom host chrome and fails nested iframe HUD/buttons/status cards that intersect it.
+12. Publish via the **waku-cli** skill.
 
 $ARGUMENTS

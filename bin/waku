@@ -98,6 +98,31 @@ process.exit(0);
   fi
 }
 
+block_direct_api_publish_or_upload() {
+  local method="${2:-}"
+  shift 2 || true
+  local api_args="$*"
+  local lower_method
+  local lower_args
+  lower_method="$(printf '%s' "$method" | tr '[:upper:]' '[:lower:]')"
+  lower_args="$(printf '%s' "$api_args" | tr '[:upper:]' '[:lower:]')"
+
+  case "$lower_method" in
+    get|head|options|"") return 0 ;;
+  esac
+
+  if printf '%s' "$lower_args" | grep -Eq '(/publish|publish|published|publication|publication_status|preview_ready|deployment|deployments|playground|/sites?|site_dir|site-dir|artifact|content|upload)'; then
+    cat >&2 <<'EOF'
+[waku] refusing direct API upload/publish mutation.
+[waku] Publishing and site uploads must go through the plugin launcher so conformance and mobile visual gates run first:
+[waku]   waku publish --site-dir public --source-dir .
+[waku]   waku playground upload --site-dir public --source-dir .
+[waku] Do not use `waku api` to upload a playable, change deployment/publication status, or convert preview_ready to published.
+EOF
+    exit 1
+  fi
+}
+
 if [ "${1:-}" = "publish" ]; then
   site_dir="$(arg_value --site-dir public "$@")"
   source_dir="$(arg_value --source-dir . "$@")"
@@ -110,6 +135,8 @@ elif [ "${1:-}" = "playground" ] && [ "${2:-}" = "upload" ]; then
   source_dir="$(arg_value --source-dir . "$@")"
   run_conformance_gate "$source_dir" "$site_dir"
   run_visual_gate "$site_dir"
+elif [ "${1:-}" = "api" ]; then
+  block_direct_api_publish_or_upload "$@"
 fi
 
 exec "$REAL" "$@"
