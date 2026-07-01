@@ -64,15 +64,16 @@ End-to-end, on either host:
 5. `/waku:edit` → pull it back, tweak `src/`, republish (same project, new version).
 6. `/waku:unpublish` / delete to clean up.
 
-Existing local games must pass the same floor before upload. The plugin launcher now runs this gate automatically before `waku publish` and `waku playground upload`, and you can run it manually:
+Existing local games must pass the same floor before upload. The plugin launcher now runs conformance and mobile visual host-chrome gates automatically before `waku publish` and `waku playground upload`, and you can run them manually:
 
 ```
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
 ```
 
 If this fails, route through `/waku:adapt`; do not publish a plain Vite/HTML project as a Waku playable.
 
-For mobile visual evidence, run:
+The visual gate simulates Waku native top/bottom chrome and inspects same-origin iframe contents for readable/tappable UI such as HUD, score cards, buttons, hints, and result panels. For mobile visual evidence only, run:
 
 ```
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
@@ -90,7 +91,7 @@ node scripts/waku-conformance-fixtures.mjs
 
 - **Skills = knowledge** (bundled, static, updated via `/plugin update`).
 - **CLI = actions** (login / publish / pull / republish / unpublish / delete) — one self-updating binary at `~/.waku`, reused by both the commands and the MCP server.
-- **Launcher = plugin guard** — `bin/waku` wraps the real CLI and blocks publish/upload when the local conformance gate fails. On first publish, it also checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
+- **Launcher = plugin guard** — `bin/waku` wraps the real CLI and blocks publish/upload when the local conformance or mobile visual host-chrome gate fails. On first publish, it also checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
 - **MCP = capability** (asset generation during creation) — `waku mcp serve`, zero token in config, reuses your login.
 - One `~/.config/waku/auth.json` ties it all together: log in once.
 

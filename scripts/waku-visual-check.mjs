@@ -10,6 +10,8 @@ const siteDir = path.resolve(flag("--site-dir", "public"));
 const width = Number(flag("--width", "390"));
 const height = Number(flag("--height", "844"));
 const screenshot = path.resolve(flag("--screenshot", "waku-visual-check.png"));
+const hostTopReserve = Number(flag("--host-top-reserve", "56"));
+const hostBottomReserve = Number(flag("--host-bottom-reserve", "82"));
 const chromePath = process.env.WAKU_CHROME_PATH || findChrome();
 
 class CdpClient {
@@ -89,33 +91,152 @@ try {
   await sleep(600);
 
   const metrics = await evalJson(client, `(() => {
+    const hostReserve = { top: ${JSON.stringify(hostTopReserve)}, bottom: ${JSON.stringify(hostBottomReserve)} };
+    const rectOf = (el, offset = { x: 0, y: 0 }) => {
+      const r = el.getBoundingClientRect();
+      return {
+        x: Math.round(r.x + offset.x),
+        y: Math.round(r.y + offset.y),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+        right: Math.round(r.right + offset.x),
+        bottom: Math.round(r.bottom + offset.y),
+      };
+    };
     const rect = (sel) => {
       const el = document.querySelector(sel);
       if (!el) return null;
+      return rectOf(el);
+    };
+    const textOf = (el) => (el.innerText || el.textContent || el.getAttribute("aria-label") || el.id || el.className || "").toString().trim().slice(0, 80);
+    const summarize = (el, offset, source) => {
+      const box = rectOf(el, offset);
+      return {
+        source,
+        tag: el.tagName.toLowerCase(),
+        id: el.id || "",
+        className: String(el.className || ""),
+        text: textOf(el),
+        ...box,
+      };
+    };
+    const visible = (el) => {
+      const style = getComputedStyle(el);
       const r = el.getBoundingClientRect();
-      return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom) };
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || "1") > 0.02 && r.width > 2 && r.height > 2;
+    };
+    const readableSelector = [
+      "button",
+      "a[href]",
+      "input",
+      "select",
+      "textarea",
+      "[role='button']",
+      "[tabindex]:not([tabindex='-1'])",
+      ".hud",
+      ".stat",
+      ".hint",
+      ".overlay-panel",
+      ".panel",
+      ".card",
+      ".score",
+      ".controls",
+      "[id*='score' i]",
+      "[id*='best' i]",
+      "[id*='speed' i]",
+      "[id*='pause' i]",
+      "[class*='score' i]",
+      "[class*='hud' i]",
+      "[class*='control' i]"
+    ].join(",");
+    const isBroadContainer = (el) => {
+      const r = el.getBoundingClientRect();
+      const view = el.ownerDocument.defaultView || window;
+      const className = String(el.className || "");
+      const tag = el.tagName.toLowerCase();
+      const keepContainer = /(?:overlay-panel|stat|card|panel|button|control)/i.test(className) || ["button", "a", "input", "select", "textarea"].includes(tag);
+      if (keepContainer) return false;
+      const nested = Array.from(el.querySelectorAll(readableSelector)).filter((child) => child !== el && visible(child)).length;
+      return nested > 0 && (r.height > view.innerHeight * 0.55 || r.width > view.innerWidth * 0.92);
     };
     const safe = rect(".safe-ui");
-    const candidates = Array.from(document.querySelectorAll("iframe, canvas, #core-target, #result-panel, .emoji-game-card, .core-target")).map((el) => {
-      const r = el.getBoundingClientRect();
-      return { tag: el.tagName.toLowerCase(), id: el.id || "", className: String(el.className || ""), x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom) };
-    });
+    const candidates = Array.from(document.querySelectorAll("iframe, canvas, #core-target, #result-panel, .emoji-game-card, .core-target, .safe-center > *"))
+      .filter(visible)
+      .map((el) => summarize(el, { x: 0, y: 0 }, "top"));
+    const readable = Array.from(document.querySelectorAll(readableSelector))
+      .filter((el) => visible(el) && !el.closest(".stage") && !isBroadContainer(el))
+      .map((el) => summarize(el, { x: 0, y: 0 }, "top-readable"));
+    const iframeReadable = [];
+    const iframeAccessFailures = [];
+    for (const iframe of Array.from(document.querySelectorAll("iframe")).filter(visible)) {
+      const iframeRect = iframe.getBoundingClientRect();
+      let doc;
+      try {
+        doc = iframe.contentDocument;
+      } catch {
+        doc = null;
+      }
+      if (!doc?.body) {
+        iframeAccessFailures.push(summarize(iframe, { x: 0, y: 0 }, "iframe"));
+        continue;
+      }
+      const nested = Array.from(doc.querySelectorAll(readableSelector)).filter((el) => visible(el) && !isBroadContainer(el));
+      if (nested.length === 0) {
+        iframeReadable.push({ ...summarize(iframe, { x: 0, y: 0 }, "iframe-uninspectable-ui"), text: "iframe treated as readable/tappable legacy surface" });
+      } else {
+        for (const el of nested) {
+          iframeReadable.push(summarize(el, { x: iframeRect.x, y: iframeRect.y }, "iframe-readable"));
+        }
+      }
+    }
+    const readableCandidates = [...readable, ...iframeReadable];
     const violations = [];
     for (const item of candidates) {
       if (!safe || item.width <= 2 || item.height <= 2) continue;
       if (item.tag === "canvas") continue;
       if (item.x < safe.x - 1 || item.y < safe.y - 1 || item.right > safe.right + 1 || item.bottom > safe.bottom + 1) {
-        violations.push(item);
+        violations.push({ reason: "outside .safe-ui", ...item });
       }
     }
-    return { viewport: { width: innerWidth, height: innerHeight }, safeUi: safe, stage: rect(".stage"), candidates, violations };
+    for (const item of readableCandidates) {
+      if (!safe || item.width <= 2 || item.height <= 2) continue;
+      if (item.x < safe.x - 1 || item.y < safe.y - 1 || item.right > safe.right + 1 || item.bottom > safe.bottom + 1) {
+        violations.push({ reason: "readable/tappable UI outside .safe-ui", ...item });
+      }
+      if (item.y < hostReserve.top || item.bottom > innerHeight - hostReserve.bottom) {
+        violations.push({ reason: "readable/tappable UI intersects simulated Waku host chrome", ...item });
+      }
+    }
+    for (const item of iframeAccessFailures) {
+      violations.push({ reason: "iframe content is not inspectable; cannot prove legacy UI avoids host chrome", ...item });
+    }
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      hostReserve,
+      hostSafeRect: { x: 0, y: hostReserve.top, width: innerWidth, height: innerHeight - hostReserve.top - hostReserve.bottom, right: innerWidth, bottom: innerHeight - hostReserve.bottom },
+      safeUi: safe,
+      stage: rect(".stage"),
+      candidates,
+      readableCandidates,
+      violations
+    };
   })()`);
+
+  await client.send("Runtime.evaluate", { expression: `(() => {
+    const top = document.createElement("div");
+    top.setAttribute("data-waku-visual-host-top", "");
+    Object.assign(top.style, { position: "fixed", left: "0", right: "0", top: "0", height: "${hostTopReserve}px", zIndex: "2147483647", pointerEvents: "none", background: "rgba(255,0,96,0.16)", borderBottom: "2px solid rgba(255,0,96,0.55)" });
+    const bottom = document.createElement("div");
+    bottom.setAttribute("data-waku-visual-host-bottom", "");
+    Object.assign(bottom.style, { position: "fixed", left: "0", right: "0", bottom: "0", height: "${hostBottomReserve}px", zIndex: "2147483647", pointerEvents: "none", background: "rgba(255,0,96,0.16)", borderTop: "2px solid rgba(255,0,96,0.55)" });
+    document.body.append(top, bottom);
+  })()` });
 
   const image = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true });
   fs.writeFileSync(screenshot, Buffer.from(image.data, "base64"));
   console.log(JSON.stringify({ ...metrics, screenshot }, null, 2));
   if (metrics.violations?.length) {
-    die("Visual check failed: readable/tappable candidates escaped .safe-ui");
+    die("Visual check failed: readable/tappable candidates escaped .safe-ui or intersected simulated Waku host chrome");
   }
 } catch (error) {
   die(error instanceof Error ? error.message : String(error));

@@ -17,15 +17,16 @@ The user already has a local game/app they want to put on Waku. Use the **waku-a
    - Full-bleed canvas/world-only visuals may live in `.stage`.
    - Any readable or tappable existing UI, including an embedded legacy HTML game, must live inside `.safe-ui` / `.safe-center` with bounded dimensions.
    - Do not put a legacy full-page iframe inside `.stage`; that bypasses safe-area constraints and must fail review.
-   - Prefer porting the game into React components. If an iframe bridge is used temporarily, make the iframe a constrained safe-area child and make the embedded page mobile-first within that bounded viewport.
+   - Prefer porting the game into React components. If an iframe bridge is used temporarily, the adapter must reserve Waku host chrome for the iframe and any nested readable/tappable UI; do not require the original game source to know Waku's rules.
 7. Add `window.__WAKU_GAME__`, `window.__waku_debug`, preview state hooks, and the template contract test.
 8. Remove every provider key / direct endpoint / token from the artifact.
 9. Build with `npm install && npm run test`, then run:
    ```bash
    node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
    ```
    Treat failures as blockers. Existing projects are publishable only after they satisfy the same template floor as Waku-created projects.
-10. Before publishing, do a real mobile visual check at about `390x844`: record the bounds of `.safe-ui`, the game root, and any iframe/canvas. The playable content must fit inside `.safe-ui` unless it is non-readable full-bleed background/world art.
+10. Before publishing, do a real mobile visual check at about `390x844`: record the bounds of `.safe-ui`, the game root, and any iframe/canvas. The playable content must fit inside `.safe-ui` unless it is non-readable full-bleed background/world art. The plugin visual gate simulates Waku top/bottom host chrome and fails nested iframe HUD/buttons/status cards that intersect it.
 11. Publish via the **waku-cli** skill.
 
 $ARGUMENTS

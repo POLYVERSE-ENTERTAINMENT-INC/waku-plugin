@@ -201,6 +201,11 @@ function checkTemplateContract() {
 
 function checkAdaptationStructure() {
   const appSource = source("src/App.tsx") || source("src/App.jsx") || source("src/App.js");
+  const cssText = source("src/index.css");
+  const sourceContractText = readAllText(sourceDir, {
+    ignoredDirs: ["public", "dist", "build", "out"],
+    ignoredFiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb"],
+  });
   if (!appSource) {
     fail("Missing src/App.* template shell. Adapt the project through the Waku session template before publishing.");
     return;
@@ -208,16 +213,39 @@ function checkAdaptationStructure() {
 
   const appRequiredMarkers = [
     [/\bclassName=["'][^"']*\bbg-layer\b/i, "src/App.* .bg-layer shell element"],
-    [/\bclassName=["'][^"']*\bstage\b/i, "src/App.* .stage shell element"],
     [/\bclassName=["'][^"']*\bsafe-ui\b/i, "src/App.* .safe-ui shell element"],
     [/\bclassName=["'][^"']*\bsafe-center\b/i, "src/App.* .safe-center shell element"],
   ];
   for (const [pattern, label] of appRequiredMarkers) {
     if (!pattern.test(appSource)) fail(`Missing ${label}. Marker strings in unrelated files do not satisfy the Waku template contract.`);
   }
+  if (!/\bclassName=["'][^"']*\bstage\b/i.test(sourceContractText)) {
+    fail("Missing .stage shell element in src/. Template projects may render it through a component, but it must exist in source.");
+  }
+
+  const cssRequiredMarkers = [
+    ["--runtime-safe-top", "runtime safe-area top variable"],
+    ["--runtime-safe-bottom", "runtime safe-area bottom variable"],
+    ["--waku-top-chrome", "Waku host top chrome variable"],
+    ["--waku-bottom-chrome", "Waku host bottom chrome variable"],
+    ["--safe-top", "composed safe top variable"],
+    ["--safe-bottom", "composed safe bottom variable"],
+  ];
+  for (const [needle, label] of cssRequiredMarkers) {
+    if (!cssText.includes(needle)) {
+      fail(`Missing ${label} in src/index.css. The Waku shell must reserve host chrome, not only device safe-area insets.`);
+    }
+  }
+
+  const safeUiUsesHostChrome =
+    /\.safe-ui\b[\s\S]{0,900}(?:top\s*:\s*calc\([^;}]*var\(--safe-top\)|padding[\s\S]{0,500}var\(--safe-top\))/i.test(cssText) &&
+    /\.safe-ui\b[\s\S]{0,1200}(?:bottom\s*:\s*calc\([^;}]*var\(--safe-bottom\)|padding[\s\S]{0,700}var\(--safe-bottom\))/i.test(cssText);
+  if (!safeUiUsesHostChrome) {
+    fail("src/index.css .safe-ui must apply --safe-top and --safe-bottom so readable/tappable UI avoids Waku host chrome.");
+  }
 
   const stageBlocks = [
-    ...appSource.matchAll(/<([A-Za-z][\w.]*)\b(?=[^>]*className=["'][^"']*\bstage\b[^"']*["'])(?![^>]*\/>)[^>]*>([\s\S]*?)<\/\1>/gi),
+    ...sourceContractText.matchAll(/<([A-Za-z][\w.]*)\b(?=[^>]*className=["'][^"']*\bstage\b[^"']*["'])(?![^>]*\/>)[^>]*>([\s\S]*?)<\/\1>/gi),
   ];
   const stageWithIframe = stageBlocks.some((match) => /<iframe\b/i.test(match[2]));
   if (stageWithIframe) {
@@ -236,7 +264,6 @@ function checkAdaptationStructure() {
       );
     }
 
-    const cssText = source("src/index.css");
     const unsafeIframeCss = /\.stage\s+iframe\b[\s\S]{0,500}(?:position\s*:\s*fixed|inset\s*:\s*0|height\s*:\s*100vh)/i.test(cssText);
     if (unsafeIframeCss) {
       fail("Iframe CSS makes the embedded existing game full-bleed inside .stage; constrain it inside .safe-ui/.safe-center instead.");
