@@ -27,10 +27,10 @@ The user already has a local game/app they want to put on Waku. Use the **waku-a
 9. Remove every provider key / direct endpoint / token from the artifact.
 10. Build with `npm install && npm run test`, then run:
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
    ```
-   Treat failures as blockers. Existing projects are publishable only after they satisfy the same template floor as Waku-created projects.
+   Treat failures as blockers. Read the JSON reports for issue codes, element evidence, screenshot paths, and suggested fixes. Existing projects are publishable only after they satisfy the same template floor as Waku-created projects.
 11. Never use `waku api` to upload the playable or flip preview/deployment/publication status. Uploading and publishing both must go through the launcher gates.
 12. Before publishing, do a real mobile visual check at about `390x844`: record the bounds of `.safe-ui`, the game root, and any iframe/canvas. The playable content must fit inside `.safe-ui` unless it is non-readable full-bleed background/world art. The plugin visual gate simulates Waku top/bottom host chrome and fails nested iframe HUD/buttons/status cards that intersect it.
 13. Publish via the **waku-cli** skill.

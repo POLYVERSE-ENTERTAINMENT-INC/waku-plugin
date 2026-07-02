@@ -10,6 +10,7 @@ const siteDir = path.resolve(flag("--site-dir", "public"));
 const width = Number(flag("--width", "390"));
 const height = Number(flag("--height", "844"));
 const screenshot = path.resolve(flag("--screenshot", "waku-visual-check.png"));
+const reportPath = path.resolve(flag("--report", path.join(path.dirname(screenshot), "waku-visual-report.json")));
 const hostTopReserve = Number(flag("--host-top-reserve", "56"));
 const hostBottomReserve = Number(flag("--host-bottom-reserve", "82"));
 const chromePath = process.env.WAKU_CHROME_PATH || findChrome();
@@ -234,9 +235,31 @@ try {
 
   const image = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true });
   fs.writeFileSync(screenshot, Buffer.from(image.data, "base64"));
-  console.log(JSON.stringify({ ...metrics, screenshot }, null, 2));
-  if (metrics.violations?.length) {
-    die("Visual check failed: readable/tappable candidates escaped .safe-ui or intersected simulated Waku host chrome");
+  const failures = (metrics.violations ?? []).map(visualIssue);
+  const report = {
+    ok: failures.length === 0,
+    gate: "waku-visual",
+    siteDir,
+    reportPath,
+    screenshot,
+    checkedAt: new Date().toISOString(),
+    viewport: metrics.viewport,
+    hostReserve: metrics.hostReserve,
+    hostSafeRect: metrics.hostSafeRect,
+    safeUi: metrics.safeUi,
+    stage: metrics.stage,
+    candidateCounts: {
+      surfaces: metrics.candidates?.length ?? 0,
+      readableOrTappable: metrics.readableCandidates?.length ?? 0,
+      violations: metrics.violations?.length ?? 0,
+    },
+    failures,
+    rawViolations: metrics.violations ?? [],
+  };
+  writeReport(report);
+  console.log(JSON.stringify(report, null, 2));
+  if (failures.length) {
+    die("Visual check failed: readable/tappable candidates escaped .safe-ui or intersected simulated Waku host chrome", { skipReport: true });
   }
 } catch (error) {
   die(error instanceof Error ? error.message : String(error));
@@ -251,9 +274,93 @@ function flag(name, fallback) {
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
 }
 
-function die(message) {
+function die(message, options = {}) {
+  if (!options.skipReport) {
+    writeReport({
+      ok: false,
+      gate: "waku-visual",
+      siteDir,
+      reportPath,
+      screenshot,
+      checkedAt: new Date().toISOString(),
+      failures: [{
+        severity: "error",
+        code: visualErrorCode(message),
+        message,
+        fix: visualFix(message),
+        evidence: {},
+      }],
+    });
+  }
   console.error(`Waku visual check failed: ${message}`);
+  console.error(`Report: ${reportPath}`);
   process.exit(1);
+}
+
+function visualIssue(violation) {
+  const code = visualErrorCode(violation.reason);
+  return {
+    severity: "error",
+    code,
+    message: visualMessage(violation),
+    fix: visualFix(violation.reason),
+    evidence: {
+      reason: violation.reason,
+      source: violation.source,
+      tag: violation.tag,
+      id: violation.id,
+      className: violation.className,
+      text: violation.text,
+      rect: {
+        x: violation.x,
+        y: violation.y,
+        width: violation.width,
+        height: violation.height,
+        right: violation.right,
+        bottom: violation.bottom,
+      },
+      screenshot,
+    },
+  };
+}
+
+function visualMessage(violation) {
+  const label = [violation.tag, violation.id ? `#${violation.id}` : "", violation.className ? `.${String(violation.className).trim().replace(/\s+/g, ".")}` : ""]
+    .filter(Boolean)
+    .join("");
+  const text = violation.text ? ` text="${violation.text}"` : "";
+  return `${violation.reason}: ${label || "element"}${text} at x=${violation.x}, y=${violation.y}, w=${violation.width}, h=${violation.height}.`;
+}
+
+function visualErrorCode(reason = "") {
+  const text = reason.toLowerCase();
+  if (text.includes("host chrome")) return "visual.host-chrome-overlap";
+  if (text.includes("outside .safe-ui") || text.includes("escaped .safe-ui")) return "visual.safe-ui-escape";
+  if (text.includes("iframe content is not inspectable")) return "visual.iframe-uninspectable";
+  if (text.includes("chrome/chromium")) return "visual.chrome-missing";
+  if (text.includes("missing")) return "visual.artifact-missing";
+  return "visual.failed";
+}
+
+function visualFix(reason = "") {
+  const code = visualErrorCode(reason);
+  const fixes = {
+    "visual.host-chrome-overlap": "Move readable/tappable UI into .safe-ui and reserve --safe-top/--safe-bottom. Put instructions, pause buttons, HUD, and result panels in DOM safe-area layers, not at raw viewport edges.",
+    "visual.safe-ui-escape": "Constrain this element inside .safe-ui/.safe-center or convert it to world-only canvas content if it is not readable/tappable UI.",
+    "visual.iframe-uninspectable": "Use a same-origin adapted page or port the legacy UI into React so the gate can verify controls and text avoid host chrome.",
+    "visual.chrome-missing": "Install Chrome/Chromium or set WAKU_CHROME_PATH to a browser binary so the mobile visual gate can run.",
+    "visual.artifact-missing": "Build the playable first and point --site-dir at the generated directory that contains index.html.",
+    "visual.failed": "Open the screenshot and report, then adjust layout until all readable/tappable UI stays inside the simulated host-safe area.",
+  };
+  return fixes[code];
+}
+
+function writeReport(report) {
+  try {
+    fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  } catch (error) {
+    console.warn(`WARN [report.write-failed] Could not write visual report: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function findChrome() {

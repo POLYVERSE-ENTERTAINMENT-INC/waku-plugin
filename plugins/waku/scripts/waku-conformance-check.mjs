@@ -16,16 +16,58 @@ function readFlag(name, fallback) {
 
 const sourceDir = path.resolve(readFlag("--source-dir", process.cwd()));
 const siteDir = path.resolve(readFlag("--site-dir", path.join(sourceDir, "public")));
+const reportPath = path.resolve(readFlag("--report", path.join(sourceDir, "waku-conformance-report.json")));
 
 const failures = [];
 const warnings = [];
 
-function fail(message) {
-  failures.push(message);
+function fail(message, details = {}) {
+  failures.push(makeIssue("error", message, details));
 }
 
-function warn(message) {
-  warnings.push(message);
+function warn(message, details = {}) {
+  warnings.push(makeIssue("warning", message, details));
+}
+
+function makeIssue(severity, message, details) {
+  return {
+    severity,
+    code: details.code ?? issueCode(message),
+    message,
+    fix: details.fix ?? suggestedFix(message),
+    evidence: details.evidence ?? {},
+  };
+}
+
+function issueCode(message) {
+  const text = message.toLowerCase();
+  if (text.includes("built site") || text.includes("index.html") || text.includes("vendor/polyverse")) return "artifact.invalid";
+  if (text.includes("template.json") || text.includes("bundled waku session template")) return "template.invalid";
+  if (text.includes(".bg-layer") || text.includes(".stage") || text.includes(".safe-ui") || text.includes(".safe-center")) return "shell.invalid";
+  if (text.includes("safe-area") || text.includes("--safe-top") || text.includes("--safe-bottom") || text.includes("host chrome")) return "safe-area.invalid";
+  if (text.includes("iframe")) return "legacy-iframe.unsafe";
+  if (text.includes("scale")) return "layout.scale-to-fit";
+  if (text.includes("intro") || text.includes("playing") || text.includes("result")) return "states.missing";
+  if (text.includes("red-line") || text.includes("api") || text.includes("token") || text.includes("provider")) return "runtime.red-line";
+  if (text.includes("package.json") || text.includes("scripts.test")) return "test-contract.invalid";
+  return "conformance.failed";
+}
+
+function suggestedFix(message) {
+  const code = issueCode(message);
+  const fixes = {
+    "artifact.invalid": "Run the template build/test, then publish the generated site directory that contains index.html, the Polyverse manifest, and vendor runtime.",
+    "template.invalid": "Recreate or adapt the project through `waku template copy <dir>` and migrate the game into the bundled session template instead of hand-writing the shell.",
+    "shell.invalid": "Restore the template shell elements in src/App.*: .bg-layer, .stage, .safe-ui, and .safe-center must be real source structure.",
+    "safe-area.invalid": "Restore the official safe-area variables and apply --safe-top/--safe-bottom to .safe-ui so HUD, buttons, hints, and panels avoid host chrome.",
+    "legacy-iframe.unsafe": "Move readable/tappable legacy UI into a bounded .safe-ui/.safe-center wrapper or port it into React components; keep .stage for world visuals only.",
+    "layout.scale-to-fit": "Do not shrink an oversized page with transform: scale(...). Split the playable into intro/menu, playing, and result states.",
+    "states.missing": "Add explicit state screens for intro/menu, playing, and result so instructions, controls, gameplay, and outcomes do not crowd one viewport.",
+    "runtime.red-line": "Remove direct provider keys, localhost endpoints, raw tokens, and direct AI calls; route capabilities through the Waku runtime SDK.",
+    "test-contract.invalid": "Add the template package.json test script and make it run the runtime contract checks before publishing.",
+    "conformance.failed": "Adapt the project through the Waku template contract and rerun this gate.",
+  };
+  return fixes[code];
 }
 
 function exists(filePath) {
@@ -367,16 +409,38 @@ checkBuiltArtifact();
 checkTemplateContract();
 checkRedLines();
 
-for (const message of warnings) {
-  console.warn(`WARN ${message}`);
+for (const issue of warnings) {
+  console.warn(`WARN [${issue.code}] ${issue.message}`);
 }
+
+writeReport({
+  ok: failures.length === 0,
+  gate: "waku-conformance",
+  sourceDir,
+  siteDir,
+  reportPath,
+  checkedAt: new Date().toISOString(),
+  failures,
+  warnings,
+});
 
 if (failures.length > 0) {
   console.error("Waku conformance check failed:");
-  for (const message of failures) {
-    console.error(`- ${message}`);
+  console.error(`Report: ${reportPath}`);
+  for (const issue of failures) {
+    console.error(`- [${issue.code}] ${issue.message}`);
+    console.error(`  fix: ${issue.fix}`);
   }
   process.exit(1);
 }
 
 console.log("Waku conformance check passed.");
+console.log(`Report: ${reportPath}`);
+
+function writeReport(report) {
+  try {
+    fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  } catch (error) {
+    console.warn(`WARN [report.write-failed] Could not write conformance report: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}

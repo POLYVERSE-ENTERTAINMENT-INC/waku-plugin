@@ -37,13 +37,13 @@ rg -n "OPENAI_API_KEY|WAVESPEED_API_KEY|apiKey|Authorization|Bearer|api\.openai|
 已有项目发布门禁：`waku publish` / `waku playground upload` 前必须通过插件脚本：
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 ```
 
-在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败时要先适配，不要退回“普通静态托管”式上传。
+在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败时要先读取 JSON 报告里的 issue code、证据和建议修复，再继续适配；不要退回“普通静态托管”式上传。
 
-插件里的 `bin/waku` 会在调用真实 CLI 前自动执行 conformance + mobile visual host-chrome 两道门禁；手动运行脚本是为了提前看到失败原因。不要用真实 CLI 路径绕过插件 launcher。视觉门禁会模拟 Waku 顶部/底部宿主控件，并钻进 same-origin iframe 检查其中按钮、状态卡、提示、面板等可读/可点元素。
+插件里的 `bin/waku` 会在调用真实 CLI 前自动执行 conformance + mobile visual host-chrome 两道门禁；手动运行脚本是为了提前看到失败原因；失败会写出 waku-conformance-report.json 或 waku-visual-report.json。不要用真实 CLI 路径绕过插件 launcher。视觉门禁会模拟 Waku 顶部/底部宿主控件，并钻进 same-origin iframe 检查其中按钮、状态卡、提示、面板等可读/可点元素。
 
 禁止用 `waku api` 做 playable 上传、deployment/publication 状态切换、`preview_ready` → `published` 这类发布链路写操作；这些写操作会绕过本地门禁。插件 launcher 会拒绝疑似上传/发布状态 mutation 的 `waku api` 调用。需要上传预览用 `waku playground upload`，需要发 Feed 用 `waku publish`。
 
@@ -53,8 +53,8 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public 
 
 ```bash
 npm install && npm run test
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 waku ls  # 首发新项目必须先查同名；同名 publish 会覆盖已有项目最新版
 waku publish --name "Pocket Beat" --site-dir public --description "A rhythm tap game"
 ```
@@ -66,8 +66,8 @@ waku publish --name "Pocket Beat" --site-dir public --description "A rhythm tap 
 ## 可分享 Preview（不进 Feed）
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 waku playground upload --name "Debug build" --site-dir public --source-dir .
 ```
 
@@ -82,8 +82,8 @@ waku ls                       # 列出你的项目，找到要改的那个
 waku pull "我的游戏"          # 或 waku pull <project_id>；拉源码到新子目录 + 写 .waku/project.json
 # ... 改 src/ ...
 npm install && npm run test   # 模板项目：检查契约并产出 public/
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 waku publish                  # 在 pulled 目录里零参运行 = 原地 republish 这个项目
 ```
 

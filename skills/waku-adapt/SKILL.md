@@ -137,11 +137,11 @@ rg -n "OPENAI_API_KEY|Bearer|api\.openai|/v1/llm|127\.0\.0\.1" .                
 发布前还必须通过插件门禁：
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 ```
 
-在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败就是 blocker：继续改到通过为止，不要绕过后直接 `waku publish` / `waku playground upload`。插件 launcher 发布前也会自动执行这两道门禁。通过后按 `waku-cli` skill 发布，并在平台里点一下真的生成验过。
+在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败就是 blocker：先读 waku-conformance-report.json 或 waku-visual-report.json 里的 issue code、证据和建议修复，继续改到通过为止，不要绕过后直接 `waku publish` / `waku playground upload`。插件 launcher 发布前也会自动执行这两道门禁。通过后按 `waku-cli` skill 发布，并在平台里点一下真的生成验过。
 
 不得用 `waku api` 直接上传 playable、改 deployment/publication 状态，或把 `preview_ready` 转成 `published`。上传前、发布前都必须走同一套 gate；预览上传用 `waku playground upload`，Feed 发布用 `waku publish`。
 
@@ -150,7 +150,7 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public 
 优先使用插件脚本生成证据：
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 ```
 
 ## 平台还没有的能力

@@ -19,7 +19,8 @@ try {
   for (const item of cases) {
     const dir = path.join(tmp, item.name);
     makeFixture(dir, item.kind);
-    const result = spawnSync(process.execPath, [checker, "--source-dir", dir, "--site-dir", path.join(dir, "public")], {
+    const reportPath = path.join(dir, "waku-conformance-report.json");
+    const result = spawnSync(process.execPath, [checker, "--source-dir", dir, "--site-dir", path.join(dir, "public"), "--report", reportPath], {
       encoding: "utf8",
     });
     const pass = item.expect === 0 ? result.status === 0 : result.status !== 0;
@@ -29,10 +30,33 @@ try {
       console.error(result.stderr);
       process.exit(1);
     }
+    assertReport(reportPath, item.expect === 0);
     console.log(`fixture ok: ${item.name}`);
   }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
+}
+
+function assertReport(reportPath, expectOk) {
+  let report;
+  try {
+    report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  } catch (error) {
+    console.error(`fixture report missing or invalid: ${reportPath}`);
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+  if (report.ok !== expectOk) {
+    console.error(`fixture report ok mismatch: ${reportPath}`);
+    process.exit(1);
+  }
+  if (!expectOk) {
+    const first = report.failures?.[0];
+    if (!first?.code || !first?.message || !first?.fix) {
+      console.error(`fixture report lacks explainable issue fields: ${reportPath}`);
+      process.exit(1);
+    }
+  }
 }
 
 function makeFixture(dir, kind) {
