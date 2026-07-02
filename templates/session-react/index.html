@@ -1,0 +1,176 @@
+<!doctype html>
+<!--
+  Runtime Smoke Demo — neutral WAKU runtime shell, now implemented with React + Tailwind.
+  Tap the number three times to verify input, feedback, audio, result, and safe layout.
+
+    .bg-layer                    full-bleed non-interactive backdrop (texture/art); fills viewport, may cross top/bottom chrome
+    .stage                       full-bleed interactive world layer (canvas/scene); fills viewport, may cross chrome
+    .safe-ui                     read/tap UI only; safe-area layer, pass-through by default (does not clip the world)
+      .safe-center               centers content within the safe area
+        #core-target             number display / primary tap target
+        #result-panel            success / failure state
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#070807" />
+    <title>Runtime Smoke Demo</title>
+    <script type="application/polyverse-manifest">
+      {
+        "name": "Runtime Smoke Demo",
+        "runtime": "@polyverse/content-runtime@1",
+        "capabilities": [
+          "app.comment.compose",
+          "assets.write",
+          "llm.chat.vision",
+          "multimodal.generate.image",
+          "multimodal.jobs.read",
+          "assets.read.own"
+        ]
+      }
+    </script>
+    <script type="application/json" id="polyverse-capability-reference" data-reference-only="true">
+      {
+        "referenceOnly": true,
+        "rule": "Do not copy every capability into the live manifest. Keep capabilities empty until the page actually calls the matching SDK method.",
+        "runtimeEntrypoint": "const pv = await window.Polyverse.ready();",
+        "manifestExamples": {
+          "visionJudge": {
+            "capabilities": ["llm.chat.vision", "multimodal.jobs.read"],
+            "allowedProviders": ["openrouter"],
+            "allowedModels": ["openai/gpt-4.1-mini"]
+          },
+          "imageGeneration": {
+            "capabilities": ["multimodal.generate.image", "multimodal.jobs.read"],
+            "allowedProviders": ["wavespeed"],
+            "allowedModels": ["bytedance/seedream-v4.5"]
+          },
+          "leaderboard": {
+            "capabilities": ["leaderboard.read", "leaderboard.write"]
+          },
+          "playerStorage": {
+            "capabilities": ["player-storage.read", "player-storage.write"]
+          },
+          "assetsUpload": {
+            "capabilities": ["assets.write"]
+          },
+          "hostAndApp": {
+            "capabilities": [
+              "host.context.read",
+              "app.share.request",
+              "app.navigation.request",
+              "app.haptics.play",
+              "app.composer.open"
+            ]
+          }
+        },
+        "capabilities": [
+          {
+            "id": "llm.chat.vision",
+            "useWhen": "Send image or visual state to a vision-capable LLM.",
+            "sdk": "pv.multimodal.generate({ capability: 'llm.chat.vision', provider, modelId, parameters, wait })",
+            "alsoDeclare": ["multimodal.jobs.read"]
+          },
+          {
+            "id": "multimodal.generate.image",
+            "useWhen": "Generate images such as art, avatars, cards, or background assets.",
+            "sdk": "pv.multimodal.generate({ capability: 'multimodal.generate.image', provider, modelId, parameters, wait })",
+            "alsoDeclare": ["multimodal.jobs.read"]
+          },
+          {
+            "id": "multimodal.generate.video",
+            "useWhen": "Generate video assets.",
+            "sdk": "pv.multimodal.generate({ capability: 'multimodal.generate.video', provider, modelId, parameters, wait })",
+            "alsoDeclare": ["multimodal.jobs.read"]
+          },
+          {
+            "id": "multimodal.generate.audio",
+            "useWhen": "Generate audio assets.",
+            "sdk": "pv.multimodal.generate({ capability: 'multimodal.generate.audio', provider, modelId, parameters, wait })",
+            "alsoDeclare": ["multimodal.jobs.read"]
+          },
+          {
+            "id": "multimodal.transcribe.audio",
+            "useWhen": "Transcribe uploaded or recorded audio.",
+            "sdk": "pv.multimodal.generate({ capability: 'multimodal.transcribe.audio', provider, modelId, parameters, wait })",
+            "alsoDeclare": ["multimodal.jobs.read"]
+          },
+          {
+            "id": "multimodal.jobs.read",
+            "useWhen": "Poll or read multimodal job results.",
+            "sdk": "pv.multimodal.getJob({ jobId, refresh: true })"
+          },
+          {
+            "id": "multimodal.models.read",
+            "useWhen": "List models or inspect a model schema.",
+            "sdk": "pv.multimodal.searchModels(input) or pv.multimodal.getModelSchema({ modelId, provider })"
+          },
+          {
+            "id": "leaderboard.write",
+            "useWhen": "Submit a score.",
+            "sdk": "pv.leaderboard.submitScore({ score, subscore, metadata, leaderboard })"
+          },
+          {
+            "id": "leaderboard.read",
+            "useWhen": "Read top scores, own rank, or nearby ranks.",
+            "sdk": "pv.leaderboard.getTop(input), pv.leaderboard.getMyRank(input), pv.leaderboard.getAroundMe(input)"
+          },
+          {
+            "id": "player-storage.write",
+            "useWhen": "Save data, upload files, delete files, publish/unpublish, or create share tokens.",
+            "sdk": "pv.storage.save(slot, data), pv.storage.upload(blob, options), pv.storage.delete(id), pv.storage.publish(id), pv.storage.share(id)"
+          },
+          {
+            "id": "player-storage.read",
+            "useWhen": "Load saved data, list files, read published gallery files, or load shared content.",
+            "sdk": "pv.storage.load(slot), pv.storage.list(options), pv.storage.listPublished(options), pv.storage.loadShared(shareToken)"
+          },
+          {
+            "id": "host.context.read",
+            "useWhen": "Read host/user/content context.",
+            "sdk": "pv.host.context()"
+          },
+          {
+            "id": "app.share.request",
+            "useWhen": "Ask host app to open the native share flow.",
+            "sdk": "pv.app.share(input)"
+          },
+          {
+            "id": "app.navigation.request",
+            "useWhen": "Ask host app to navigate to another app surface.",
+            "sdk": "pv.app.navigation(input)"
+          },
+          {
+            "id": "app.haptics.play",
+            "useWhen": "Ask host app to play haptic feedback.",
+            "sdk": "pv.app.haptics.play({ style })"
+          },
+          {
+            "id": "app.composer.open",
+            "useWhen": "Ask host app to open composer flow.",
+            "sdk": "pv.app.composer.open(input)"
+          },
+          {
+            "id": "assets.write",
+            "useWhen": "Upload a locally generated image (e.g. a rendered result card / canvas poster) to a permanent public URL, so it can be shared as an image comment.",
+            "sdk": "pv.assets.upload(base64, { filename, mimeType }) -> record carrying a public http(s) URL (≤20 MiB; compress large images first)"
+          },
+          {
+            "id": "app.comment.compose",
+            "useWhen": "Open a prefilled comment draft (image + text) so the player can share a result to the comments feed. The only share channel.",
+            "sdk": "pv.app.composeComment({ imageUrl, text }) — imageUrl must be a public http(s) URL (no data URLs), e.g. one returned by pv.assets.upload"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./vendor/polyverse-content-runtime.min.js"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

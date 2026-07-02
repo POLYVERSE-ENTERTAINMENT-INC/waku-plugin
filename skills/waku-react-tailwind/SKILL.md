@@ -35,9 +35,11 @@ description: WAKU playable 的 React + Tailwind 写码契约——在 WAKU/sessi
 4. `src/components/` 放从 MCP / 设计工具 / registry 来的生成或导入组件。
 5. 内容循环 / 探针放 `src/playable/`，WAKU 包 JS 调用放 `src/waku/`，中性 helper 放 `src/lib/`。
 6. 先实现最小完整循环。
-7. 把 runtime 状态镜像到 `window.__WAKU_GAME__` 和 `.safe-ui.dataset`。
-8. 不要为模板规则在产物里加重复 docs；契约在本 skill，机器校验靠脚本。
-9. 跑 `npm run test`。
+7. 若标题/说明/开始/帮助/设置/HUD/玩法/结果放在一屏会拥挤或超出 safe viewport，必须拆成 `intro`/`menu`、`playing`、`result` 状态页；不要缩小整页、缩小 canvas 或把说明浮在玩法中间。
+8. Canvas/Three/Phaser 只承载世界/角色/障碍/特效；HUD、暂停、说明、开始、结果、分享必须是 DOM safe-area UI。
+9. 把 runtime 状态镜像到 `window.__WAKU_GAME__` 和 `.safe-ui.dataset`。
+10. 不要为模板规则在产物里加重复 docs；契约在本 skill，机器校验靠脚本。
+11. 跑 `npm run test` 和插件 `waku-visual-check`。
 
 ## 写码契约
 
@@ -50,4 +52,4 @@ description: WAKU playable 的 React + Tailwind 写码契约——在 WAKU/sessi
 - 保住了哪些 runtime 契约
 - 已知后续风险
 
-> probe 出口语义：`window.__WAKU_GAME__` 暴露状态读取接口（getState / getResult / reset 等）、`.safe-ui.dataset` 镜像 `data-phase` 等关键状态——两者是 Review / smoke 判定运行时行为的观测面。shell 的真实样板就在模板 repo 的 `src/App.tsx`，动手前先读它。旧产物可能仍叫 `.zone-c-safe` / `#playfield`；新代码必须按当前模板的 `.safe-ui` / `.stage` 写，不要混用。
+> probe 出口语义：`window.__WAKU_GAME__` 暴露状态读取接口（getState / getResult / reset 等）、`.safe-ui.dataset` 镜像 `data-phase` 等关键状态——两者是 Review / smoke 判定运行时行为的观测面。shell 的真实样板来自插件内置模板（`waku template copy ./<dir>` 后的 `src/App.tsx`），动手前先读它。旧产物可能仍叫 `.zone-c-safe` / `#playfield`；新代码必须按当前模板的 `.safe-ui` / `.stage` 写，不要混用。

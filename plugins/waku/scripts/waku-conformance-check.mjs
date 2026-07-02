@@ -144,6 +144,20 @@ function checkTemplateContract() {
     return;
   }
 
+  const templateMetaPath = path.join(sourceDir, "template.json");
+  if (!exists(templateMetaPath)) {
+    fail("Missing template.json. New and adapted Waku projects must be created from the bundled plugin template via `waku template copy <dir>`; do not hand-write a replacement shell.");
+  } else {
+    try {
+      const meta = JSON.parse(readText(templateMetaPath));
+      if (meta.id !== "polyverse-session-template-dev" || meta.source !== "bundled") {
+        fail("template.json does not identify the bundled Waku session template. Recreate the project with `waku template copy <dir>` and migrate the content into it.");
+      }
+    } catch {
+      fail("template.json is not valid JSON.");
+    }
+  }
+
   const sourceText = readAllText(sourceDir, {
     ignoredDirs: ["public", "dist", "build", "out"],
     ignoredFiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb"],
@@ -237,12 +251,26 @@ function checkAdaptationStructure() {
     }
   }
 
+  const additiveSafeTop =
+    /--safe-top\s*:\s*calc\(\s*var\(--runtime-safe-top\)\s*\+\s*var\(--waku-top-chrome\)\s*\)/.test(cssText);
+  if (!additiveSafeTop) {
+    fail("src/index.css must keep the official additive safe-area formula: --safe-top: calc(var(--runtime-safe-top) + var(--waku-top-chrome)). Do not replace it with max(...) or a hand-written approximation.");
+  }
+
+  const safeBottomUsesChrome =
+    /--safe-bottom\s*:\s*(?:var\(--waku-bottom-chrome\)|calc\([^;]*var\(--runtime-safe-bottom\)[^;]*var\(--waku-bottom-chrome\)[^;]*\))/.test(cssText);
+  if (!safeBottomUsesChrome) {
+    fail("src/index.css must derive --safe-bottom from --waku-bottom-chrome so bottom host controls are reserved by the template contract.");
+  }
+
   const safeUiUsesHostChrome =
     /\.safe-ui\b[\s\S]{0,900}(?:top\s*:\s*calc\([^;}]*var\(--safe-top\)|padding[\s\S]{0,500}var\(--safe-top\))/i.test(cssText) &&
     /\.safe-ui\b[\s\S]{0,1200}(?:bottom\s*:\s*calc\([^;}]*var\(--safe-bottom\)|padding[\s\S]{0,700}var\(--safe-bottom\))/i.test(cssText);
   if (!safeUiUsesHostChrome) {
     fail("src/index.css .safe-ui must apply --safe-top and --safe-bottom so readable/tappable UI avoids Waku host chrome.");
   }
+
+  checkNoScaleToFit(cssText, sourceContractText);
 
   const stageBlocks = [
     ...sourceContractText.matchAll(/<([A-Za-z][\w.]*)\b(?=[^>]*className=["'][^"']*\bstage\b[^"']*["'])(?![^>]*\/>)[^>]*>([\s\S]*?)<\/\1>/gi),
@@ -256,6 +284,8 @@ function checkAdaptationStructure() {
 
   const hasIframe = /<iframe\b/i.test(appSource);
   if (hasIframe) {
+    checkStateSplitForLegacy(sourceContractText);
+
     const safeCenterWithIframe = /className=["'][^"']*\bsafe-center\b[^"']*["'][\s\S]{0,2200}<iframe\b/i.test(appSource);
     const safeWrapperWithIframe = /className=["'][^"']*(?:safe|card|panel|viewport|frame)[^"']*["'][\s\S]{0,1400}<iframe\b/i.test(appSource);
     if (!safeCenterWithIframe && !safeWrapperWithIframe) {
@@ -268,6 +298,29 @@ function checkAdaptationStructure() {
     if (unsafeIframeCss) {
       fail("Iframe CSS makes the embedded existing game full-bleed inside .stage; constrain it inside .safe-ui/.safe-center instead.");
     }
+  }
+}
+
+function checkNoScaleToFit(cssText, sourceText) {
+  const suspiciousScaleSelector =
+    /(?:\.safe-ui|\.safe-center|\.safe-frame|iframe|\.legacy|\.game-card|\.playable|\.core-target|#core-target|#game|#app)[^{]{0,120}\{[^}]*transform\s*:\s*[^;}]*scale\(\s*(?:0?\.\d+|var\()/i;
+  if (suspiciousScaleSelector.test(cssText)) {
+    fail("Do not use transform: scale(...) on safe-area, iframe, legacy, or game-root UI to force an oversized page into one screen. Split intro/menu, playing, and result states instead.");
+  }
+
+  const inlineScaleToFit =
+    /(?:className|id)=["'][^"']*(?:safe|frame|legacy|game|playable|core)[^"']*["'][\s\S]{0,400}(?:transform\s*:\s*["'`][^"'`]*scale\(\s*(?:0?\.\d+|var\()|scale\s*:\s*["'`](?:0?\.\d+|var\())/i;
+  if (inlineScaleToFit.test(sourceText)) {
+    fail("Inline scale-to-fit adaptation detected. Oversized existing pages must be split into state screens, not shrunk as one surface.");
+  }
+}
+
+function checkStateSplitForLegacy(sourceText) {
+  const hasIntro = /\b(?:intro|menu|start|onboarding)\b/i.test(sourceText);
+  const hasPlaying = /\bplaying\b/i.test(sourceText);
+  const hasResult = /\bresult\b/i.test(sourceText);
+  if (!hasIntro || !hasPlaying || !hasResult) {
+    fail("Legacy/iframe adaptation must expose split states for oversized pages: intro/menu -> playing -> result. Do not publish a single crowded legacy page.");
   }
 }
 

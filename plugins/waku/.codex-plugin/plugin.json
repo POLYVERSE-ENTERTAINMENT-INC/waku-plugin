@@ -1,7 +1,7 @@
 {
   "name": "waku",
-  "version": "0.1.4",
-  "description": "Create, adapt, publish and edit mobile playable web content with Waku. Bundles the Waku creation + adaptation skills, a CLI operations skill, and the Waku multimodal MCP server.",
+  "version": "0.1.6",
+  "description": "Create, adapt, publish and edit mobile playable web content with Waku. Bundles the Waku creation + adaptation skills, an offline session template, a CLI operations skill, and the Waku multimodal MCP server.",
   "author": {
     "name": "Polyverse Entertainment"
   },
@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Waku",
     "shortDescription": "Create & publish mobile playables on Waku",
-    "longDescription": "Waku creator toolkit for Codex: scaffold a new mobile playable from the platform template (waku skill), or adapt an existing local game (waku-adapt skill), then build and publish to your Waku Feed via the waku CLI (waku-cli skill). Multimodal asset generation runs through the bundled Waku MCP server.",
+    "longDescription": "Waku creator toolkit for Codex: scaffold a new mobile playable from the bundled platform template (waku skill), or adapt an existing local game through that same template contract (waku-adapt skill), then build and publish to your Waku Feed via the waku CLI (waku-cli skill). Multimodal asset generation runs through the bundled Waku MCP server.",
     "developerName": "Polyverse Entertainment",
     "category": "Engineering",
     "capabilities": ["Interactive", "Read", "Write"]

@@ -1,0 +1,7 @@
+node_modules/
+public/
+dist/
+site.zip
+evidence/
+.DS_Store
+.vite/

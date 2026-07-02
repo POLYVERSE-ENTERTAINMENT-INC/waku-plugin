@@ -1,0 +1,16 @@
+{
+  "id": "polyverse-session-template-dev",
+  "name": "Waku React Session Template",
+  "version": "0.2.0",
+  "bundledWithPlugin": "waku@0.1.6",
+  "source": "bundled",
+  "requiredFiles": [
+    "index.html",
+    "package.json",
+    "src/App.tsx",
+    "src/index.css",
+    "src/main.tsx",
+    "static/vendor/polyverse-content-runtime.min.js",
+    "scripts/runtime-contract-check.js"
+  ]
+}

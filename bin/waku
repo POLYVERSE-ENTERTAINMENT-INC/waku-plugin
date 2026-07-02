@@ -123,6 +123,16 @@ EOF
   fi
 }
 
+copy_bundled_template() {
+  local destination="${1:-}"
+  if [ -z "$destination" ]; then
+    echo "Usage: waku template copy <destination> [--force]" >&2
+    exit 2
+  fi
+  shift || true
+  node "$PLUGIN_ROOT/scripts/waku-copy-template.mjs" "$destination" "$@"
+}
+
 if [ "${1:-}" = "publish" ]; then
   site_dir="$(arg_value --site-dir public "$@")"
   source_dir="$(arg_value --source-dir . "$@")"
@@ -137,6 +147,10 @@ elif [ "${1:-}" = "playground" ] && [ "${2:-}" = "upload" ]; then
   run_visual_gate "$site_dir"
 elif [ "${1:-}" = "api" ]; then
   block_direct_api_publish_or_upload "$@"
+elif [ "${1:-}" = "template" ] && [ "${2:-}" = "copy" ]; then
+  shift 2
+  copy_bundled_template "$@"
+  exit 0
 fi
 
 exec "$REAL" "$@"

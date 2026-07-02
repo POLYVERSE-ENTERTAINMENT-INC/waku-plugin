@@ -13,6 +13,7 @@ try {
     { name: "valid-safe-iframe", kind: "valid", expect: 0 },
     { name: "bad-stage-iframe", kind: "stageIframe", expect: 1 },
     { name: "plain-vite", kind: "plain", expect: 1 },
+    { name: "scaled-legacy", kind: "scaledLegacy", expect: 1 },
   ];
 
   for (const item of cases) {
@@ -50,11 +51,15 @@ function makeFixture(dir, kind) {
     ? `<div>Hello</div>`
     : kind === "stageIframe"
       ? `<div className="bg-layer" /><section className="stage"><iframe src="./legacy.html" /></section><main className="safe-ui"><section id="safe-center" className="safe-center"><div id="core-target" /></section></main>`
+      : kind === "scaledLegacy"
+        ? `<div className="bg-layer" /><section className="stage" /><main className="safe-ui"><section id="safe-center" className="safe-center"><div className="safe-frame"><iframe src="./legacy.html" /></div><div id="core-target" /></section></main>`
       : `<div className="bg-layer" /><section className="stage" /><main className="safe-ui"><section id="safe-center" className="safe-center"><div className="safe-frame"><iframe src="./legacy.html" /></div><div id="core-target" /></section></main>`;
   fs.writeFileSync(path.join(dir, "src", "App.tsx"), app);
-  fs.writeFileSync(path.join(dir, "src", "index.css"), `:root{--runtime-safe-top:0px;--runtime-safe-bottom:0px;--waku-top-chrome:56px;--waku-bottom-chrome:82px;--safe-top:calc(var(--runtime-safe-top) + var(--waku-top-chrome));--safe-bottom:var(--waku-bottom-chrome);} .bg-layer{} .stage{} .safe-ui{top:calc(var(--safe-top));bottom:calc(var(--safe-bottom));} .safe-center{} .core-target{} .safe-frame{}`);
-  fs.writeFileSync(path.join(dir, "src", "playable", "usePlayableState.ts"), `registerWakuPreviewStates(); reportWakuPreviewState(); window.__WAKU_GAME__={}; window.__waku_debug={};`);
+  const scaleCss = kind === "scaledLegacy" ? " .safe-frame{transform:scale(0.72);}" : " .safe-frame{}";
+  fs.writeFileSync(path.join(dir, "src", "index.css"), `:root{--runtime-safe-top:0px;--runtime-safe-bottom:0px;--waku-top-chrome:56px;--waku-bottom-chrome:82px;--safe-top:calc(var(--runtime-safe-top) + var(--waku-top-chrome));--safe-bottom:var(--waku-bottom-chrome);} .bg-layer{} .stage{} .safe-ui{top:calc(var(--safe-top));bottom:calc(var(--safe-bottom));} .safe-center{} .core-target{}${scaleCss}`);
+  fs.writeFileSync(path.join(dir, "src", "playable", "usePlayableState.ts"), `const phases = ["intro","menu","playing","result"]; registerWakuPreviewStates(); reportWakuPreviewState(); window.__WAKU_GAME__={}; window.__waku_debug={};`);
   fs.writeFileSync(path.join(dir, "src", "waku", "polyverse.ts"), `export {};`);
+  fs.writeFileSync(path.join(dir, "template.json"), JSON.stringify({ id: "polyverse-session-template-dev", source: "bundled", version: "0.2.0" }));
   fs.mkdirSync(path.join(dir, "scripts"), { recursive: true });
   fs.writeFileSync(path.join(dir, "scripts", "runtime-contract-check.js"), "");
 

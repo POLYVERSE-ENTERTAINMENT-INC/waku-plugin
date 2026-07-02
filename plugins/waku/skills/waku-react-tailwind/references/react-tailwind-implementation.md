@@ -124,6 +124,7 @@ Run the template floor before claiming complete:
 
 ```sh
 npm run test
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
 ```
 
-This checks TypeScript, manifest/runtime contract, build, and relative built paths.
+This checks TypeScript, manifest/runtime contract, build, relative built paths, and mobile host-chrome overlap. If the visual check fails because copy, controls, HUD, or results fight for the same safe viewport, split the playable into `intro`/`menu`, `playing`, and `result` states instead of shrinking the page.

@@ -1,0 +1,32 @@
+{
+  "name": "polyverse-session-template",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@10.9.2",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "trim": "python3 scripts/alpha_trim.py",
+    "test": "tsc --noEmit && node scripts/runtime-contract-check.js && vite build && node scripts/check-built-paths.js",
+    "verify": "npm test && node scripts/auto-smoke.mjs public",
+    "artifact:zip": "python3 -m zipfile -c site.zip public",
+    "artifact:upload": "python3 scripts/upload_artifact.py --zip site.zip",
+    "artifact:upload:gcs": "python3 scripts/upload_gcs_artifact.py --zip site.zip"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  }
+}

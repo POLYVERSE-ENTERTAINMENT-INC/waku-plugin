@@ -1,0 +1,641 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: system-ui, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+@layer base {
+  :root {
+    --bg: oklch(13% 0.01 240);
+    --surface: oklch(20% 0.014 240);
+    --surface-strong: oklch(24% 0.018 240);
+    --line: oklch(88% 0.018 245 / 0.24);
+    --text: oklch(94% 0.012 250);
+    --muted: oklch(72% 0.018 248);
+    --accent: oklch(70% 0.12 220);
+    --accent-strong: oklch(78% 0.14 220);
+
+    --runtime-safe-top: max(
+      env(safe-area-inset-top, 0px),
+      var(--sys-top, 0px),
+      var(--gallery-safe-area-top, 0px)
+    );
+    --runtime-safe-bottom: max(
+      env(safe-area-inset-bottom, 0px),
+      var(--sys-bottom, 0px)
+    );
+    --runtime-safe-left: env(safe-area-inset-left, 0px);
+    --runtime-safe-right: env(safe-area-inset-right, 0px);
+
+    --waku-top-nav-band: 56px;
+    --waku-top-icon-bottom: 50px;
+    --waku-top-chrome: var(--waku-top-nav-band);
+    --waku-bottom-nav: 60px;
+    --waku-bottom-margin: 22px;
+    --waku-bottom-chrome: calc(var(--waku-bottom-nav) + var(--waku-bottom-margin));
+    --safe-top: calc(var(--runtime-safe-top) + var(--waku-top-chrome));
+    --safe-bottom: var(--waku-bottom-chrome);
+
+    --safe-pad: 16px;
+    --safe-pad-top: 0px;
+    --safe-pad-bottom: var(--safe-pad);
+    --safe-pad-left: var(--safe-pad);
+    --safe-pad-right: var(--safe-pad);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+
+  /* Center the design canvas; any letterbox (off-aspect host frame) shows --bg. */
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Design canvas. Laid out at the device's full (largest-seen) viewport size and
+     scaled as ONE piece to fit the current viewport — full-screen → scale 1
+     (full-bleed, unchanged); a proportional host shrink (edit/card mode) → a
+     smaller identical copy instead of a reflow. Vars driven by
+     installViewportScale() (src/lib/viewport-scale.ts). It is also a query
+     container ("stage"): size in-canvas things relative to the stage (%, cqw/cqh,
+     @container) rather than raw vw/vh, which measures the shrunk viewport and
+     would scale twice. */
+  #root {
+    width: var(--app-w, 100vw);
+    height: var(--app-h, 100vh);
+    flex: none;
+    transform: scale(var(--app-scale, 1));
+    transform-origin: center center;
+    container: stage / size;
+  }
+
+  button {
+    font: inherit;
+  }
+
+  p,
+  h1,
+  h2,
+  h3 {
+    margin: 0;
+  }
+}
+
+@layer components {
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--bg) url("./bg-texture.webp") repeat;
+    background-size: 160px 160px;
+  }
+
+  /* .stage: full-bleed interactive stage (root for canvas/world content). Fills the
+     viewport like .bg-layer but receives touch. Stack: .bg-layer(0) < .stage(1) <
+     .safe-ui(2) < .overlay-backdrop(50). Example: src/playable/AttractStage.tsx. */
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  /* .safe-ui: safe-area UI layer (avoids host top/bottom chrome). Holds readable/
+     tappable things (HUD, buttons, copy, cards). Pass-through by default; only its
+     direct children take pointer events, so it never blocks the world beneath. */
+  .safe-ui {
+    position: fixed;
+    top: calc(var(--safe-top) + var(--safe-pad-top));
+    bottom: calc(var(--safe-bottom) + var(--safe-pad-bottom));
+    left: calc(var(--runtime-safe-left) + var(--safe-pad-left));
+    right: calc(var(--runtime-safe-right) + var(--safe-pad-right));
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+  }
+
+  .safe-ui > * {
+    pointer-events: auto;
+  }
+
+  /* .safe-center: centers content within .safe-ui */
+  .safe-center {
+    flex: 1 1 auto;
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    min-height: 0;
+    place-items: center;
+    overflow: hidden;
+  }
+
+  /* The centering region must NOT swallow taps meant for the interactive world in
+     .stage beneath it — a recurring trap. `.safe-ui > *` defaults to auto, so override
+     .safe-center back to pass-through and re-enable its actual children: empty space in
+     .safe-center falls through to .stage, real UI (buttons, cards) inside stays clickable. */
+  .safe-ui > .safe-center {
+    pointer-events: none;
+  }
+
+  .safe-center > * {
+    pointer-events: auto;
+  }
+
+  /* Overlay backdrop (a template structural primitive, peer to .bg-layer / .safe-ui).
+     Fills the whole viewport (notch/edges/host chrome included) but pads content to
+     the same safe-area insets as .safe-ui. Rendered to body via a portal. */
+  .overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding:
+      calc(var(--safe-top) + var(--safe-pad-top))
+      calc(var(--runtime-safe-right) + var(--safe-pad-right))
+      calc(var(--safe-bottom) + var(--safe-pad-bottom))
+      calc(var(--runtime-safe-left) + var(--safe-pad-left));
+    background: oklch(0% 0 0 / 0.55);
+    animation: overlay-fade 0.18s ease-out;
+  }
+
+  .overlay-panel {
+    max-width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  @keyframes overlay-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .core-target {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: min(58cqw, 260px);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  .signal-core {
+    display: grid;
+    place-items: center;
+    font-size: 168px;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 20px 60px oklch(0% 0 0 / 0.3);
+    transform: translateZ(0);
+    transition: transform 120ms ease, filter 120ms ease;
+  }
+
+  .core-target.is-hit .signal-core {
+    transform: scale(1.08) translateZ(0);
+    filter: drop-shadow(0 0 26px var(--accent));
+  }
+
+  .result-panel {
+    width: min(100%, 360px);
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at top left, oklch(75% 0.14 220 / 0.22), transparent 42%),
+      color-mix(in oklch, var(--surface-strong) 92%, black);
+    box-shadow: 0 24px 80px oklch(0% 0 0 / 0.3);
+  }
+
+  .result-panel[hidden] {
+    display: none;
+  }
+
+  .replay-button {
+    min-height: 48px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: oklch(13% 0.01 240);
+    font-weight: 800;
+    box-shadow: 0 14px 40px oklch(0% 0 0 / 0.22);
+    touch-action: manipulation;
+  }
+
+  .replay-button:active {
+    transform: translateY(1px);
+  }
+
+  .safe-ui[data-phase="result"] .core-target {
+    display: none;
+  }
+}
+
+/* ── Runtime AI connectivity probe bar (top of safe area, fixed-payload smoke) ── */
+.runtime-probe {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.runtime-probe-row {
+  display: flex;
+  gap: 8px;
+}
+
+.probe-button {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--surface-strong) 88%, black);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 120ms ease, opacity 120ms ease;
+}
+
+.probe-button:active {
+  transform: translateY(1px);
+}
+
+.probe-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.probe-button.is-ok {
+  border-color: oklch(72% 0.16 150);
+}
+
+.probe-button.is-err {
+  border-color: oklch(64% 0.2 25);
+}
+
+.probe-button-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.probe-button-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.probe-button.is-ok .probe-button-status {
+  color: oklch(80% 0.15 150);
+}
+
+.probe-button.is-err .probe-button-status {
+  color: oklch(74% 0.18 25);
+}
+
+.runtime-probe-out {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 34cqh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.probe-out-line {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* OK answer (e.g. the LLM's reply): readable, in a faint panel so it stands out
+   as the model's actual output rather than blending into the backdrop. */
+.probe-out-line.is-ok {
+  color: var(--text);
+  background: color-mix(in oklch, var(--surface-strong) 86%, black);
+  border: 1px solid oklch(72% 0.16 150 / 0.35);
+}
+
+.probe-out-line.is-err {
+  color: oklch(74% 0.18 25);
+}
+
+.probe-out-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface-strong) 80%, black);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  vertical-align: 1px;
+}
+
+.probe-out-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+}
+
+/* In-canvas breakpoints query the stage (the full design canvas), not the live
+   viewport — otherwise a shrunk frame would trip them AND get transform-scaled. */
+@container stage (max-height: 700px) {
+  .signal-core {
+    font-size: 116px;
+  }
+}
+
+@container stage (max-width: 430px) {
+  .signal-core {
+    font-size: 136px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-core,
+  .replay-button {
+    transition: none;
+  }
+}
+
+/* ── Gesture hint: standard onboarding affordance (src/components/ui/GestureHint) ──
+   White dot looping a demo of the required gesture. Pointer-transparent; the
+   parent owns dismissal. Styles: tap (ping), long-press (charge), swipe
+   (directional, with a motion trail; "left-right" oscillates). */
+.gesture-hint-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+.gesture-hint-layer[data-visible="false"] {
+  opacity: 0;
+}
+
+.gesture-hint {
+  position: absolute;
+}
+
+.gesture-hint-dot,
+.gesture-hint-ring,
+.gesture-hint-trail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  margin: -11px; /* center on the (left,top) anchor point */
+  border-radius: 999px;
+  box-sizing: border-box;
+}
+
+.gesture-hint-dot {
+  background: oklch(100% 0 0 / 0.92);
+  box-shadow: 0 0 14px oklch(100% 0 0 / 0.5), 0 2px 8px oklch(0% 0 0 / 0.35);
+}
+
+.gesture-hint-ring {
+  border: 2px solid oklch(100% 0 0 / 0.8);
+  opacity: 0;
+}
+
+/* trailing ghosts for swipe (lag the dot → motion blur); dimmer + smaller */
+.gesture-hint-trail {
+  background: oklch(100% 0 0 / 0.42);
+}
+.gesture-hint-trail.t2 {
+  width: 17px;
+  height: 17px;
+  margin: -8.5px;
+  background: oklch(100% 0 0 / 0.22);
+}
+
+.gesture-hint-label {
+  position: absolute;
+  left: 0;
+  top: 24px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: oklch(100% 0 0 / 0.85);
+  text-shadow: 0 1px 6px oklch(0% 0 0 / 0.6);
+}
+
+/* tap: quick radar ping — ring expands out and fades, dot gives a small pop */
+.gesture-hint[data-gesture="tap"] .gesture-hint-dot {
+  animation: gh-tap-dot 1.4s ease-out infinite;
+}
+.gesture-hint[data-gesture="tap"] .gesture-hint-ring {
+  animation: gh-ping 1.4s ease-out infinite;
+}
+@keyframes gh-ping {
+  0% { transform: scale(0.7); opacity: 0.85; }
+  70% { opacity: 0; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+@keyframes gh-tap-dot {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(0.72); }
+  30% { transform: scale(1.06); }
+}
+
+/* long-press: press & hold — ring contracts inward (charging) onto a pressed,
+   shrunken dot, holds, then releases. Slow and deliberately distinct from tap. */
+.gesture-hint[data-gesture="long-press"] .gesture-hint-dot {
+  animation: gh-press-dot 2s ease-in-out infinite;
+}
+.gesture-hint[data-gesture="long-press"] .gesture-hint-ring {
+  animation: gh-press-ring 2s ease-in-out infinite;
+}
+@keyframes gh-press-dot {
+  0%, 100% { transform: scale(1); }
+  35%, 80% { transform: scale(0.6); }
+}
+@keyframes gh-press-ring {
+  0% { transform: scale(2.6); opacity: 0; }
+  35% { transform: scale(1.3); opacity: 0.95; }
+  80% { transform: scale(1.3); opacity: 0.95; }
+  92% { transform: scale(1.55); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* swipe: dot + two trailing ghosts travel along the axis, looping. The ghosts
+   lag (animation-delay) to draw a motion trail. */
+.gesture-hint[data-gesture="swipe"] .gesture-hint-dot,
+.gesture-hint[data-gesture="swipe"] .gesture-hint-trail {
+  animation-duration: 1.5s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+.gesture-hint[data-gesture="swipe"] .gesture-hint-trail.t1 { animation-delay: 0.08s; }
+.gesture-hint[data-gesture="swipe"] .gesture-hint-trail.t2 { animation-delay: 0.16s; }
+
+.gesture-hint[data-gesture="swipe"][data-direction="up"] .gesture-hint-dot,
+.gesture-hint[data-gesture="swipe"][data-direction="up"] .gesture-hint-trail { animation-name: gh-up; }
+.gesture-hint[data-gesture="swipe"][data-direction="down"] .gesture-hint-dot,
+.gesture-hint[data-gesture="swipe"][data-direction="down"] .gesture-hint-trail { animation-name: gh-down; }
+.gesture-hint[data-gesture="swipe"][data-direction="left"] .gesture-hint-dot,
+.gesture-hint[data-gesture="swipe"][data-direction="left"] .gesture-hint-trail { animation-name: gh-left; }
+.gesture-hint[data-gesture="swipe"][data-direction="right"] .gesture-hint-dot,
+.gesture-hint[data-gesture="swipe"][data-direction="right"] .gesture-hint-trail { animation-name: gh-right; }
+.gesture-hint[data-gesture="swipe"][data-direction="left-right"] .gesture-hint-dot,
+.gesture-hint[data-gesture="swipe"][data-direction="left-right"] .gesture-hint-trail { animation-name: gh-lr; }
+
+@keyframes gh-up {
+  0% { transform: translateY(30px); opacity: 0; }
+  20%, 80% { opacity: 1; }
+  100% { transform: translateY(-30px); opacity: 0; }
+}
+@keyframes gh-down {
+  0% { transform: translateY(-30px); opacity: 0; }
+  20%, 80% { opacity: 1; }
+  100% { transform: translateY(30px); opacity: 0; }
+}
+@keyframes gh-left {
+  0% { transform: translateX(30px); opacity: 0; }
+  20%, 80% { opacity: 1; }
+  100% { transform: translateX(-30px); opacity: 0; }
+}
+@keyframes gh-right {
+  0% { transform: translateX(-30px); opacity: 0; }
+  20%, 80% { opacity: 1; }
+  100% { transform: translateX(30px); opacity: 0; }
+}
+/* back-and-forth: continuous, no fade — the trail reads as the motion blur */
+@keyframes gh-lr {
+  0% { transform: translateX(-26px); }
+  50% { transform: translateX(26px); }
+  100% { transform: translateX(-26px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gesture-hint-dot,
+  .gesture-hint-ring,
+  .gesture-hint-trail {
+    animation: none !important;
+  }
+  .gesture-hint-trail { display: none; }
+  .gesture-hint-ring { opacity: 0.5; }
+}
+
+/* ── Device probe: live tilt / haptics / shake smoke check (src/playable/DeviceProbe) ── */
+.device-probe {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.device-probe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-probe-bars {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.device-probe-axis {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface-strong) 80%, black);
+  overflow: hidden;
+}
+
+/* fill grows from the centre; translateX driven by an inline --v in [-1,1] */
+.device-probe-axis::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  transform-origin: left center;
+  transform: scaleX(calc(var(--v, 0)));
+  background: var(--accent);
+}
+
+.device-probe-buzz {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--surface-strong) 88%, black);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.device-probe-buzz:active {
+  transform: translateY(1px);
+}
+
+.device-probe-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
