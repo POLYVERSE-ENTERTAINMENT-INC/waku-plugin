@@ -6,7 +6,14 @@
     "name": "Polyverse Entertainment"
   },
   "homepage": "https://github.com/POLYVERSE-ENTERTAINMENT-INC/waku-plugin",
-  "keywords": ["waku", "playable", "game", "mobile", "content-creation", "multimodal"],
+  "keywords": [
+    "waku",
+    "playable",
+    "game",
+    "mobile",
+    "content-creation",
+    "multimodal"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
@@ -15,6 +22,10 @@
     "longDescription": "Waku creator toolkit for Codex: scaffold a new mobile playable from the bundled platform template (waku skill), or adapt an existing local game through that same template contract (waku-adapt skill), then build and publish to your Waku Feed via the waku CLI (waku-cli skill). Multimodal asset generation runs through the bundled Waku MCP server.",
     "developerName": "Polyverse Entertainment",
     "category": "Engineering",
-    "capabilities": ["Interactive", "Read", "Write"]
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ]
   }
 }

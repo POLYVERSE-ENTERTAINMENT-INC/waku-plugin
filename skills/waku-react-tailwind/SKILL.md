@@ -39,7 +39,7 @@ description: WAKU playable 的 React + Tailwind 写码契约——在 WAKU/sessi
 8. Canvas/Three/Phaser 只承载世界/角色/障碍/特效；HUD、暂停、说明、开始、结果、分享必须是 DOM safe-area UI。
 9. 把 runtime 状态镜像到 `window.__WAKU_GAME__` 和 `.safe-ui.dataset`。
 10. 不要为模板规则在产物里加重复 docs；契约在本 skill，机器校验靠脚本。
-11. 跑 `npm run test` 和插件 `waku-visual-check`。
+11. 新建项目交付前跑 `waku-create-gate`；失败就修复并重复运行，直到通过。
 
 ## 写码契约
 

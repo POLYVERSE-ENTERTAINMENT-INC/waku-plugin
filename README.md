@@ -60,25 +60,29 @@ End-to-end, on either host:
 1. **Install** (above), then start a fresh session.
 2. `/waku:login` → browser → log in on the Waku website (one time).
 3. `/waku:create` → describe a small mobile playable; the agent scaffolds the platform template into a new folder, builds it, and generates any assets via the Waku MCP.
-4. `/waku:publish` → builds, runs the conformance gate, and publishes to your Waku Feed. You get back a `content_id` + `preview_url`.
-5. `/waku:edit` → pull it back, tweak `src/`, republish (same project, new version).
-6. `/waku:unpublish` / delete to clean up.
+4. The create flow must pass the local create gate before handoff. The agent repeats code fixes until this passes:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
+   ```
+5. `/waku:publish` → builds, runs the conformance gate, and publishes to your Waku Feed. You get back a `content_id` + `preview_url`.
+6. `/waku:edit` → pull it back, tweak `src/`, republish (same project, new version).
+7. `/waku:unpublish` / delete to clean up.
 
 Existing local games must pass the same floor before upload. The plugin launcher now runs conformance and mobile visual host-chrome gates automatically before `waku publish` and `waku playground upload`, and you can run them manually:
 
 ```
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-conformance-check.mjs" --source-dir . --site-dir public --report waku-conformance-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 ```
 
-If this fails, route through `/waku:adapt`; do not publish a plain Vite/HTML project as a Waku playable.
+If this fails, route through `/waku:adapt`; do not publish a plain Vite/HTML project as a Waku playable. Gate failures write structured reports with issue codes, element evidence, suggested fixes, and screenshot paths so agents and users can see exactly what blocked the release.
 
 Do not use `waku api` to upload a playable, mutate deployment/publication status, or convert `preview_ready` to `published`. Those writes bypass upload/publish gates, so the launcher refuses suspicious direct API mutations; use `waku playground upload` or `waku publish`.
 
 The visual gate simulates Waku native top/bottom chrome and inspects same-origin iframe contents for readable/tappable UI such as HUD, score cards, buttons, hints, and result panels. For mobile visual evidence only, run:
 
 ```
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 ```
 
 For plugin regression fixtures:

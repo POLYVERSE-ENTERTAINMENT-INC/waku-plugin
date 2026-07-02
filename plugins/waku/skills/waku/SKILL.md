@@ -43,7 +43,11 @@ cd ./<name>          # 之后所有创作都在这里
 2. **Spec + 设计**：把方向收敛成可实现的内容契约（状态机、UI 层、资产、文案 key、运行时 capability、Review 探针）；玩法 / 核心循环 / 引擎选择 / UI 方向 → 切到 `game-studio` skill。
 3. **写码**：在脚手架出的模板里写 React + Tailwind → 切到 `waku-react-tailwind` skill（src/ 目录、shell 不变量、safe-area、state 规则都在那）。不要另起普通 Vite 项目；必须保留当前 session template 的 `.bg-layer` / `.stage` / `.safe-ui` 结构。
 4. **平台能力**（按内容需要）：生产期静态资产 → `polyverse_*` MCP 工具（description 即用法）；运行时实时能力（内容内 AI、排行榜、存档、分享、haptics）→ content-runtime SDK（`references/runtime-js.md`）。
-5. **Review**：跑机器底线（`npm run test`）+ 插件视觉门禁（`waku-visual-check`）+ 运行时 smoke，写结构化证据。新建项目也必须在交付前模拟 Waku 顶部/底部 host chrome；不要等发布时才发现遮挡。
+5. **Review / 自动修复循环（必做）**：实现后必须运行 create gate：
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
+   ```
+   这个 gate 会跑 `npm run test` + 移动端视觉 host-chrome 检查。失败时必须读终端输出、`waku-visual-report.json` 和 `waku-visual-check.png`，按报告里的 issue code、元素证据和 fix 修改代码，再运行同一命令；循环到通过为止。不得把失败产物展示给用户、开预览、上传或发布。连续三轮仍失败时，停止并报告 blocker、报告路径和截图路径。
 6. **交付**：见下，所有 gate 过了才交付。
 
 ## 交付（本地）
@@ -54,11 +58,11 @@ cd ./<name>          # 之后所有创作都在这里
 - 先实现最小完整循环，再加资产 / 文案 / 平台调用 / 打磨。
 - 模板是 plain npm：**先 `npm install`**，再 `npm run test`（TS + 运行时契约 + build + 相对路径机器底线）。
 - 如果说明、开始、帮助、设置、HUD、玩法、结果同屏会超出 safe viewport，必须拆成 `intro`/`menu`、`playing`、`result`。不得通过整体缩放页面/canvas/iframe 来“塞进一屏”。
+- 新建项目完成后必须通过 `waku-create-gate` 的自动修复循环；这一步是交付条件，不是发布前可选检查。
 - 首次发布新项目必须先用 `waku ls` 或 `waku api GET /projects` 查重。`waku publish --name "<name>"` 在同一用户下遇到同名项目会更新已有项目最新版本，不会创建第二个同名项目；除非用户明确要求覆盖/republish，否则名称已存在时换一个唯一名称或先确认。
 - 机器底线 + Review gate 都过后，发布：
   ```bash
-  npm install && npm run test            # 契约检查 + 产出 public/
-  node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png
+  node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
   waku ls                                # 查同名，避免误覆盖已有项目
   waku publish --name "<name>" --site-dir public   # 发到 Feed，绑到用户自己的账号
   ```
