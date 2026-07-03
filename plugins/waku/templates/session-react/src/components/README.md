@@ -5,8 +5,8 @@ Reserved for generated or imported component-library code.
 Ships one standard primitive: `ui/GestureHint` — a white dot that loops a gesture
 demo for first screens with no obvious button. Styles: `tap`, `long-press`, and
 `swipe` (with a motion trail; `direction` = up/down/left/right/left-right).
-`ui/GestureHintShowcase` renders all styles at once for the demo. Pointer-
-transparent; the parent owns dismissal via the `visible` prop.
+`ui/GestureHintShowcase` renders all styles at once for local review only.
+Pointer-transparent; the parent owns dismissal via the `visible` prop.
 
 In this template, platform geometry and the neutral smoke demo do **not** live here. That keeps the folder clean for components pulled in by the agent through MCP, design-system registries, or future WAKU component sources.
 

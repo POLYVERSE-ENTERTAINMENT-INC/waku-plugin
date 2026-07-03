@@ -254,6 +254,7 @@ try {
       violations: metrics.violations?.length ?? 0,
     },
     failures,
+    next_actions: nextActions(failures, { siteDir, screenshot, reportPath }),
     rawViolations: metrics.violations ?? [],
   };
   writeReport(report);
@@ -290,6 +291,13 @@ function die(message, options = {}) {
         fix: visualFix(message),
         evidence: {},
       }],
+      next_actions: nextActions([{
+        severity: "error",
+        code: visualErrorCode(message),
+        message,
+        fix: visualFix(message),
+        evidence: {},
+      }], { siteDir, screenshot, reportPath }),
     });
   }
   console.error(`Waku visual check failed: ${message}`);
@@ -361,6 +369,46 @@ function writeReport(report) {
   } catch (error) {
     console.warn(`WARN [report.write-failed] Could not write visual report: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function nextActions(issues, context) {
+  if (!issues.length) return [];
+  const seen = new Set();
+  return issues
+    .filter((issue) => {
+      if (seen.has(issue.code)) return false;
+      seen.add(issue.code);
+      return true;
+    })
+    .map((issue, index) => ({
+      priority: index + 1,
+      code: issue.code,
+      action: visualActionForCode(issue.code),
+      fix: issue.fix,
+      evidence: issue.evidence,
+      inspect: {
+        screenshot: context.screenshot,
+        report: context.reportPath,
+      },
+      rerun: {
+        command: `node scripts/waku-visual-check.mjs --site-dir ${shellQuote(context.siteDir)} --screenshot ${shellQuote(context.screenshot)} --report ${shellQuote(context.reportPath)}`,
+      },
+    }));
+}
+
+function visualActionForCode(code) {
+  const actions = {
+    "visual.host-chrome-overlap": "Move the listed readable/tappable element away from the simulated Waku top or bottom chrome.",
+    "visual.safe-ui-escape": "Constrain the listed element inside .safe-ui/.safe-center or make it world-only canvas content.",
+    "visual.iframe-uninspectable": "Make the legacy iframe same-origin/inspectable or port its UI into React safe-area components.",
+    "visual.chrome-missing": "Install Chrome/Chromium or set WAKU_CHROME_PATH, then rerun the visual gate.",
+    "visual.artifact-missing": "Build the playable and point --site-dir at the generated directory.",
+  };
+  return actions[code] ?? "Open the screenshot and repair layout until all readable/tappable UI stays inside the host-safe area.";
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
 function findChrome() {

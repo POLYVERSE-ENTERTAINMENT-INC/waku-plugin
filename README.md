@@ -62,7 +62,7 @@ End-to-end, on either host:
 3. `/waku:create` → describe a small mobile playable; the agent scaffolds the platform template into a new folder, builds it, and generates any assets via the Waku MCP.
 4. The create flow must pass the local create gate before handoff. The agent repeats code fixes until this passes:
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json --conformance-report waku-conformance-report.json --report waku-create-gate-report.json
    ```
 5. `/waku:publish` → builds, runs the conformance gate, and publishes to your Waku Feed. You get back a `content_id` + `preview_url`.
 6. `/waku:edit` → pull it back, tweak `src/`, republish (same project, new version).

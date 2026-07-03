@@ -14,6 +14,7 @@ try {
     { name: "bad-stage-iframe", kind: "stageIframe", expect: 1 },
     { name: "plain-vite", kind: "plain", expect: 1 },
     { name: "scaled-legacy", kind: "scaledLegacy", expect: 1 },
+    { name: "debug-ui", kind: "debugUi", expect: 1 },
   ];
 
   for (const item of cases) {
@@ -77,6 +78,8 @@ function makeFixture(dir, kind) {
       ? `<div className="bg-layer" /><section className="stage"><iframe src="./legacy.html" /></section><main className="safe-ui"><section id="safe-center" className="safe-center"><div id="core-target" /></section></main>`
       : kind === "scaledLegacy"
         ? `<div className="bg-layer" /><section className="stage" /><main className="safe-ui"><section id="safe-center" className="safe-center"><div className="safe-frame"><iframe src="./legacy.html" /></div><div id="core-target" /></section></main>`
+      : kind === "debugUi"
+        ? `import { RuntimeProbe } from "./playable/RuntimeProbe"; export function App(){ return <><div className="bg-layer" /><section className="stage" /><main className="safe-ui"><RuntimeProbe /><section id="safe-center" className="safe-center"><div id="core-target" /></section></main></>; }`
       : `<div className="bg-layer" /><section className="stage" /><main className="safe-ui"><section id="safe-center" className="safe-center"><div className="safe-frame"><iframe src="./legacy.html" /></div><div id="core-target" /></section></main>`;
   fs.writeFileSync(path.join(dir, "src", "App.tsx"), app);
   const scaleCss = kind === "scaledLegacy" ? " .safe-frame{transform:scale(0.72);}" : " .safe-frame{}";

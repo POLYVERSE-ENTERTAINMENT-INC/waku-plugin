@@ -45,9 +45,9 @@ cd ./<name>          # 之后所有创作都在这里
 4. **平台能力**（按内容需要）：生产期静态资产 → `polyverse_*` MCP 工具（description 即用法）；运行时实时能力（内容内 AI、排行榜、存档、分享、haptics）→ content-runtime SDK（`references/runtime-js.md`）。
 5. **Review / 自动修复循环（必做）**：实现后必须运行 create gate：
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
+   node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json --conformance-report waku-conformance-report.json --report waku-create-gate-report.json
    ```
-   这个 gate 会跑 `npm run test` + 移动端视觉 host-chrome 检查。失败时必须读终端输出、`waku-visual-report.json` 和 `waku-visual-check.png`，按报告里的 issue code、元素证据和 fix 修改代码，再运行同一命令；循环到通过为止。不得把失败产物展示给用户、开预览、上传或发布。连续三轮仍失败时，停止并报告 blocker、报告路径和截图路径。
+   这个 gate 会跑 `npm run test` + conformance + 移动端视觉 host-chrome 检查。失败时必须读终端输出、`waku-create-gate-report.json`、`waku-conformance-report.json`、`waku-visual-report.json` 和 `waku-visual-check.png`，按报告里的 issue code、元素证据和 fix 修改代码，再运行同一命令；循环到通过为止。不得把失败产物展示给用户、开预览、上传或发布。连续三轮仍失败时，停止并报告 blocker、报告路径和截图路径。
 6. **交付**：见下，所有 gate 过了才交付。
 
 ## 交付（本地）
@@ -62,7 +62,7 @@ cd ./<name>          # 之后所有创作都在这里
 - 首次发布新项目必须先用 `waku ls` 或 `waku api GET /projects` 查重。`waku publish --name "<name>"` 在同一用户下遇到同名项目会更新已有项目最新版本，不会创建第二个同名项目；除非用户明确要求覆盖/republish，否则名称已存在时换一个唯一名称或先确认。
 - 机器底线 + Review gate 都过后，发布：
   ```bash
-  node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
+  node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json --conformance-report waku-conformance-report.json --report waku-create-gate-report.json
   waku ls                                # 查同名，避免误覆盖已有项目
   waku publish --name "<name>" --site-dir public   # 发到 Feed，绑到用户自己的账号
   ```

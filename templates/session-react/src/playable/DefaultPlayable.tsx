@@ -4,7 +4,6 @@ import { composeWakuComment, uploadImageForShare } from "../waku/polyverse";
 import { renderResultCard } from "../lib/sharecard";
 import { createTiltController } from "../lib/devicemotion";
 import { Overlay } from "../Overlay";
-import { GestureHintShowcase } from "../components/ui/GestureHintShowcase";
 import type { PlayableState, ResultState } from "./usePlayableState";
 
 // Share default: render THIS run's result CARD → upload it to a permanent public
@@ -52,9 +51,6 @@ export function DefaultPlayable({ state, onPrimaryPointer, onReplay }: DefaultPl
           {state.score}
         </div>
       </button>
-
-      {/* Demo: show every guidance style at once while waiting for first input. */}
-      <GestureHintShowcase visible={state.phase === "ready" && !state.hasFirstInteraction} />
 
       <ResultPanel
         result={state.result}

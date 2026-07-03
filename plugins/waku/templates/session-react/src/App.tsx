@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { DefaultPlayable } from "./playable/DefaultPlayable";
 import { AttractStage } from "./playable/AttractStage";
-import { RuntimeProbe } from "./playable/RuntimeProbe";
-import { DeviceProbe } from "./playable/DeviceProbe";
 import { usePlayableState } from "./playable/usePlayableState";
 import { initI18n, onLangChange, t } from "./lib/i18n";
 import { lockGestures } from "./lib/gestures";
@@ -59,10 +57,6 @@ export function App() {
 
       {/* Safe-area UI layer. This demo's tap target is readable UI, so it belongs here. */}
       <main className="safe-ui" {...(i18nReady ? playable.dataset : { "data-phase": "loading" })}>
-        {/* Top of safe area: runtime AI connectivity probe (fixed-payload smoke). */}
-        <RuntimeProbe />
-        {/* Device-motion + haptics smoke check (tilt bars / Buzz / shake count). */}
-        <DeviceProbe />
         <section
           id="safe-center"
           className="safe-center"

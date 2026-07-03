@@ -23,7 +23,7 @@ The user already has a local game/app they want to put on Waku. Use the **waku-a
    - Do not put a legacy full-page iframe inside `.stage`; that bypasses safe-area constraints and must fail review.
    - Prefer porting the game into React components. If an iframe bridge is used temporarily, the adapter must reserve Waku host chrome for the iframe and any nested readable/tappable UI; do not require the original game source to know Waku's rules.
 7. If the original page exceeds one mobile safe viewport, split it into Waku states (`intro`/`menu` -> `playing` -> `result`). Put instructions/start/help/settings/results in safe-area screens, and keep the `playing` screen focused on the core loop. Do not use whole-page or iframe scaling as a shortcut.
-8. Add `window.__WAKU_GAME__`, `window.__waku_debug`, preview state hooks, and the template contract test.
+8. Add `window.__WAKU_GAME__`, `window.__waku_debug`, preview state hooks, and the template contract test. Remove template-only visible debug/demo UI such as `RuntimeProbe`, `DeviceProbe`, `DefaultPlayable`, and `GestureHintShowcase`; these are not production UI.
 9. Remove every provider key / direct endpoint / token from the artifact.
 10. Build with `npm install && npm run test`, then run:
    ```bash

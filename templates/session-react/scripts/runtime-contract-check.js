@@ -119,6 +119,11 @@ const app = read("src/App.tsx");
 assert.match(app, /className=["']bg-layer["']/, "src/App.tsx must hard-code .bg-layer in the template shell");
 assert.match(app, /className=["']safe-ui["']/, "src/App.tsx must hard-code .safe-ui in the template shell");
 assert.doesNotMatch(app, /\.\/components\//, "src/App.tsx must not import template-owned shell from src/components/");
+assert.doesNotMatch(
+  app,
+  /RuntimeProbe|DeviceProbe|GestureHintShowcase/,
+  "src/App.tsx must not render template-only visible debug/smoke UI in the default production path",
+);
 
 
 

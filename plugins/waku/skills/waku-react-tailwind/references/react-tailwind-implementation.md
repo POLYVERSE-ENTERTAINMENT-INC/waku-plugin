@@ -123,7 +123,7 @@ Do not render safe-area borders, labels, debug rulers, or fake phone shells in p
 Run the template floor before claiming complete:
 
 ```sh
-node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json
+node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-create-gate.mjs" --project-dir . --site-dir public --screenshot waku-visual-check.png --visual-report waku-visual-report.json --conformance-report waku-conformance-report.json --report waku-create-gate-report.json
 ```
 
-This runs `npm run test`, then checks mobile host-chrome overlap and writes `waku-visual-report.json`. If the gate fails because copy, controls, HUD, or results fight for the same safe viewport, read the report evidence, fix the layout, and rerun the same command. Split the playable into `intro`/`menu`, `playing`, and `result` states instead of shrinking the page.
+This runs `npm run test`, conformance, then mobile host-chrome overlap, writing `waku-create-gate-report.json`, `waku-conformance-report.json`, and `waku-visual-report.json`. If the gate fails because copy, controls, HUD, or results fight for the same safe viewport, read the report evidence, fix the layout, and rerun the same command. Split the playable into `intro`/`menu`, `playing`, and `result` states instead of shrinking the page.

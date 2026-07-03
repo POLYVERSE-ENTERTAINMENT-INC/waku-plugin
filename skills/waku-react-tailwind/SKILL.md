@@ -39,7 +39,8 @@ description: WAKU playable 的 React + Tailwind 写码契约——在 WAKU/sessi
 8. Canvas/Three/Phaser 只承载世界/角色/障碍/特效；HUD、暂停、说明、开始、结果、分享必须是 DOM safe-area UI。
 9. 把 runtime 状态镜像到 `window.__WAKU_GAME__` 和 `.safe-ui.dataset`。
 10. 不要为模板规则在产物里加重复 docs；契约在本 skill，机器校验靠脚本。
-11. 新建项目交付前跑 `waku-create-gate`；失败就修复并重复运行，直到通过。
+11. 不要把模板可见调试/示例组件带到产物里：`RuntimeProbe`、`DeviceProbe`、`DefaultPlayable`、`GestureHintShowcase` 都必须被真实玩法 UI 替换；只保留不可见 review hooks。
+12. 新建项目交付前跑 `waku-create-gate`；失败就修复并重复运行，直到通过。
 
 ## 写码契约
 
@@ -53,3 +54,4 @@ description: WAKU playable 的 React + Tailwind 写码契约——在 WAKU/sessi
 - 已知后续风险
 
 > probe 出口语义：`window.__WAKU_GAME__` 暴露状态读取接口（getState / getResult / reset 等）、`.safe-ui.dataset` 镜像 `data-phase` 等关键状态——两者是 Review / smoke 判定运行时行为的观测面。shell 的真实样板来自插件内置模板（`waku template copy ./<dir>` 后的 `src/App.tsx`），动手前先读它。旧产物可能仍叫 `.zone-c-safe` / `#playfield`；新代码必须按当前模板的 `.safe-ui` / `.stage` 写，不要混用。
+> 注意：这里的 probe 是不可见观测出口，不是玩家可见的调试组件。不要上线 RuntimeProbe / DeviceProbe 这类模板 smoke UI。

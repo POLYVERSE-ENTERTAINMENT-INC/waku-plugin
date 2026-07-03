@@ -30,9 +30,10 @@ function warn(message, details = {}) {
 }
 
 function makeIssue(severity, message, details) {
+  const code = details.code ?? issueCode(message);
   return {
     severity,
-    code: details.code ?? issueCode(message),
+    code,
     message,
     fix: details.fix ?? suggestedFix(message),
     evidence: details.evidence ?? {},
@@ -47,6 +48,7 @@ function issueCode(message) {
   if (text.includes("safe-area") || text.includes("--safe-top") || text.includes("--safe-bottom") || text.includes("host chrome")) return "safe-area.invalid";
   if (text.includes("iframe")) return "legacy-iframe.unsafe";
   if (text.includes("scale")) return "layout.scale-to-fit";
+  if (text.includes("debug ui") || text.includes("template demo") || text.includes("runtimeprobe") || text.includes("deviceprobe")) return "template-debug-ui.present";
   if (text.includes("intro") || text.includes("playing") || text.includes("result")) return "states.missing";
   if (text.includes("red-line") || text.includes("api") || text.includes("token") || text.includes("provider")) return "runtime.red-line";
   if (text.includes("package.json") || text.includes("scripts.test")) return "test-contract.invalid";
@@ -62,6 +64,7 @@ function suggestedFix(message) {
     "safe-area.invalid": "Restore the official safe-area variables and apply --safe-top/--safe-bottom to .safe-ui so HUD, buttons, hints, and panels avoid host chrome.",
     "legacy-iframe.unsafe": "Move readable/tappable legacy UI into a bounded .safe-ui/.safe-center wrapper or port it into React components; keep .stage for world visuals only.",
     "layout.scale-to-fit": "Do not shrink an oversized page with transform: scale(...). Split the playable into intro/menu, playing, and result states.",
+    "template-debug-ui.present": "Remove visible template-only debug/demo UI from the production App. Keep invisible hooks such as window.__WAKU_GAME__, window.__waku_debug, and preview state reporting.",
     "states.missing": "Add explicit state screens for intro/menu, playing, and result so instructions, controls, gameplay, and outcomes do not crowd one viewport.",
     "runtime.red-line": "Remove direct provider keys, localhost endpoints, raw tokens, and direct AI calls; route capabilities through the Waku runtime SDK.",
     "test-contract.invalid": "Add the template package.json test script and make it run the runtime contract checks before publishing.",
@@ -231,7 +234,7 @@ function checkTemplateContract() {
     fail("Missing src/waku adapter directory. Existing projects must be adapted into the Waku template contract before publishing.");
   }
 
-  checkAdaptationStructure();
+  checkAdaptationStructure(builtText);
 
   const packagePath = path.join(sourceDir, "package.json");
   if (!exists(packagePath)) {
@@ -255,7 +258,7 @@ function checkTemplateContract() {
   }
 }
 
-function checkAdaptationStructure() {
+function checkAdaptationStructure(builtText) {
   const appSource = source("src/App.tsx") || source("src/App.jsx") || source("src/App.js");
   const cssText = source("src/index.css");
   const sourceContractText = readAllText(sourceDir, {
@@ -266,6 +269,8 @@ function checkAdaptationStructure() {
     fail("Missing src/App.* template shell. Adapt the project through the Waku session template before publishing.");
     return;
   }
+
+  checkNoTemplateDebugUi(appSource, builtText);
 
   const appRequiredMarkers = [
     [/\bclassName=["'][^"']*\bbg-layer\b/i, "src/App.* .bg-layer shell element"],
@@ -339,6 +344,33 @@ function checkAdaptationStructure() {
     const unsafeIframeCss = /\.stage\s+iframe\b[\s\S]{0,500}(?:position\s*:\s*fixed|inset\s*:\s*0|height\s*:\s*100vh)/i.test(cssText);
     if (unsafeIframeCss) {
       fail("Iframe CSS makes the embedded existing game full-bleed inside .stage; constrain it inside .safe-ui/.safe-center instead.");
+    }
+  }
+}
+
+function checkNoTemplateDebugUi(appSource, builtText) {
+  const visibleTemplateUi = [
+    [/RuntimeProbe/i, "RuntimeProbe"],
+    [/DeviceProbe/i, "DeviceProbe"],
+    [/GestureHintShowcase/i, "GestureHintShowcase"],
+    [/DefaultPlayable/i, "DefaultPlayable template demo"],
+  ];
+  for (const [pattern, label] of visibleTemplateUi) {
+    if (pattern.test(appSource)) {
+      fail(`Visible template debug UI remains in src/App.*: ${label}. Replace the scaffold demo/probe components with the actual playable UI before publishing.`);
+    }
+  }
+
+  const builtDebugUi = [
+    [/runtime-probe/i, ".runtime-probe"],
+    [/device-probe/i, ".device-probe"],
+    [/probe-button/i, ".probe-button"],
+    [/probe-llm|probe-image/i, "runtime probe controls"],
+    [/GestureHintShowcase/i, "GestureHintShowcase"],
+  ];
+  for (const [pattern, label] of builtDebugUi) {
+    if (pattern.test(builtText)) {
+      fail(`Built artifact contains visible template debug UI marker ${label}. Remove scaffold probes/demo UI from production output before publishing.`);
     }
   }
 }
@@ -422,6 +454,7 @@ writeReport({
   checkedAt: new Date().toISOString(),
   failures,
   warnings,
+  next_actions: nextActions(failures, { sourceDir, siteDir, reportPath }),
 });
 
 if (failures.length > 0) {
@@ -443,4 +476,45 @@ function writeReport(report) {
   } catch (error) {
     console.warn(`WARN [report.write-failed] Could not write conformance report: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function nextActions(issues, context) {
+  if (issues.length === 0) return [];
+  const seen = new Set();
+  return issues
+    .filter((issue) => {
+      if (seen.has(issue.code)) return false;
+      seen.add(issue.code);
+      return true;
+    })
+    .map((issue, index) => ({
+      priority: index + 1,
+      code: issue.code,
+      action: actionForCode(issue.code),
+      fix: issue.fix,
+      evidence: issue.evidence,
+      rerun: {
+        command: `node scripts/waku-conformance-check.mjs --source-dir ${shellQuote(context.sourceDir)} --site-dir ${shellQuote(context.siteDir)} --report ${shellQuote(context.reportPath)}`,
+      },
+    }));
+}
+
+function actionForCode(code) {
+  const actions = {
+    "artifact.invalid": "Rebuild the project and verify the generated site directory contains a Waku index.html and runtime vendor bundle.",
+    "template.invalid": "Move the project into the bundled Waku session template before publishing.",
+    "shell.invalid": "Restore the required template shell in src/App.* and src/index.css.",
+    "safe-area.invalid": "Repair safe-area variables and place readable/tappable UI inside .safe-ui.",
+    "legacy-iframe.unsafe": "Constrain or port legacy iframe UI so it lives inside the Waku safe area.",
+    "layout.scale-to-fit": "Replace whole-page scaling with explicit intro/menu, playing, and result states.",
+    "template-debug-ui.present": "Replace template demo/probe UI in the production App with the real playable UI.",
+    "states.missing": "Split crowded legacy content into intro/menu, playing, and result states.",
+    "runtime.red-line": "Remove provider credentials, localhost endpoints, direct AI calls, and raw tokens.",
+    "test-contract.invalid": "Restore package.json and the template test contract.",
+  };
+  return actions[code] ?? "Fix the reported conformance issue, then rerun this gate.";
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
