@@ -10,12 +10,15 @@ Create, adapt, publish and edit **mobile playable web content** on the [Waku](ht
 | **`waku-adapt` skill** | Knowledge for adapting an **existing** local game: merge the session-template contract, replace AI calls with the platform runtime SDK, strip secrets, apply mobile constraints. |
 | **`waku-cli` skill** | The publish lifecycle: login, publish to Feed, shareable preview, pull → edit → republish, unpublish, delete, plus the mandatory pre-publish conformance gate. |
 | **`waku` CLI** | The engine for every authenticated action. Not shipped in the plugin — the launcher installs it to `~/.waku` on first use. |
+| **Plugin launcher** | `bin/waku` wraps the real CLI, adds plugin-only commands such as `waku template copy`, and enforces local gates before upload/publish. |
 | **`waku` MCP** | Multimodal generation (image / music / sfx / speech / video) used during creation. Auto-registered via `.mcp.json`; reuses your login, mints tokens on demand. |
 | **Slash commands** | `/waku:login`, `/waku:create`, `/waku:adapt`, `/waku:publish`, `/waku:edit`. |
 
 ## Install
 
 One repo serves both hosts. The `waku` CLI is **not** shipped inside the plugin — a launcher / SessionStart hook installs it to `~/.waku` on first use (idempotent; skipped if already present). You log in once; the session auto-renews and you're never re-prompted while authenticated.
+
+`waku template copy <dir>` is provided by the plugin launcher (`bin/waku`), not by the raw upstream CLI at `~/.waku/bin/waku`. If an environment bypasses the launcher, call `node <plugin-root>/scripts/waku-copy-template.mjs <dir>` instead of scaffolding a plain Vite project.
 
 ### Claude Code
 
@@ -97,7 +100,7 @@ node scripts/waku-conformance-fixtures.mjs
 
 - **Skills = knowledge** (bundled, static, updated via `/plugin update`).
 - **CLI = actions** (login / publish / pull / republish / unpublish / delete) — one self-updating binary at `~/.waku`, reused by both the commands and the MCP server.
-- **Launcher = plugin guard** — `bin/waku` wraps the real CLI and blocks publish/upload when the local conformance or mobile visual host-chrome gate fails. It also refuses direct `waku api` mutations that look like playable uploads or publication/deployment status changes. On first publish, it checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
+- **Launcher = plugin guard + template helper** — `bin/waku` wraps the real CLI, provides `waku template copy`, and blocks publish/upload when the local conformance or mobile visual host-chrome gate fails. It also refuses direct `waku api` mutations that look like playable uploads or publication/deployment status changes. On first publish, it checks same-name projects and refuses accidental updates unless `WAKU_ALLOW_SAME_NAME_UPDATE=1` is set intentionally.
 - **MCP = capability** (asset generation during creation) — `waku mcp serve`, zero token in config, reuses your login.
 - One `~/.config/waku/auth.json` ties it all together: log in once.
 

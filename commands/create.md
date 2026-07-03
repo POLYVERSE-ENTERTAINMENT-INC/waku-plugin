@@ -6,10 +6,11 @@ argument-hint: "[project name] [what you want to make]"
 The user wants to create a brand-new mobile playable on Waku. Use the **waku** creation skill, and follow this greenfield flow:
 
 1. Ensure login: run `waku whoami`; if it fails, tell them to run `/waku:login` (don't nag if already logged in).
-2. **Scaffold into a NEW subfolder — never touch the current directory's existing files.** Pick a short `<name>` (ask if not given), then:
+2. **Scaffold into a NEW subfolder — never touch the current directory's existing files.** Pick a short `<name>` (ask if not given), then use the plugin launcher command:
    ```bash
    waku template copy ./<name>
    ```
+   `template copy` is provided by the Waku plugin launcher (`bin/waku`), not the raw upstream CLI at `~/.waku/bin/waku`. If the command is unavailable because the environment bypassed the launcher, run `node <plugin-root>/scripts/waku-copy-template.mjs ./<name>` instead.
    If `./<name>` already exists and is non-empty, stop and ask for a different name. If the bundled template is unavailable or the copy command reports `BLOCKED_TEMPLATE_UNAVAILABLE`, stop and report that blocker — don't fabricate a project shell.
 3. `cd ./<name>` and do all work there. Follow the **waku** skill: intake (ask the user creative questions first), spec, build with React+Tailwind, generate production assets via the Waku MCP tools. Do not replace the scaffold with a plain Vite app; preserve the current template shell (`.bg-layer`, `.stage`, `.safe-ui`, `.safe-center`), Polyverse manifest/runtime, invisible review hooks, and `npm run test`.
 4. Do not crowd instructions, start controls, HUD, gameplay, and results into one screen. Use explicit phases (`intro`/`menu`, `playing`, `result`) whenever copy or controls would compete with the core loop. Keep readable/tappable UI in `.safe-ui`; canvas/stage is for world visuals only.

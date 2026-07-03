@@ -59,7 +59,7 @@ function suggestedFix(message) {
   const code = issueCode(message);
   const fixes = {
     "artifact.invalid": "Run the template build/test, then publish the generated site directory that contains index.html, the Polyverse manifest, and vendor runtime.",
-    "template.invalid": "Recreate or adapt the project through `waku template copy <dir>` and migrate the game into the bundled session template instead of hand-writing the shell.",
+    "template.invalid": "Recreate or adapt the project through the plugin launcher command `waku template copy <dir>` (or `node <plugin-root>/scripts/waku-copy-template.mjs <dir>` if the launcher is unavailable) and migrate the game into the bundled session template instead of hand-writing the shell.",
     "shell.invalid": "Restore the template shell elements in src/App.*: .bg-layer, .stage, .safe-ui, and .safe-center must be real source structure.",
     "safe-area.invalid": "Restore the official safe-area variables and apply --safe-top/--safe-bottom to .safe-ui so HUD, buttons, hints, and panels avoid host chrome.",
     "legacy-iframe.unsafe": "Move readable/tappable legacy UI into a bounded .safe-ui/.safe-center wrapper or port it into React components; keep .stage for world visuals only.",
@@ -191,12 +191,12 @@ function checkTemplateContract() {
 
   const templateMetaPath = path.join(sourceDir, "template.json");
   if (!exists(templateMetaPath)) {
-    fail("Missing template.json. New and adapted Waku projects must be created from the bundled plugin template via `waku template copy <dir>`; do not hand-write a replacement shell.");
+    fail("Missing template.json. New and adapted Waku projects must be created from the bundled plugin template via the plugin launcher command `waku template copy <dir>` or `node <plugin-root>/scripts/waku-copy-template.mjs <dir>`; do not hand-write a replacement shell.");
   } else {
     try {
       const meta = JSON.parse(readText(templateMetaPath));
       if (meta.id !== "polyverse-session-template-dev" || meta.source !== "bundled") {
-        fail("template.json does not identify the bundled Waku session template. Recreate the project with `waku template copy <dir>` and migrate the content into it.");
+        fail("template.json does not identify the bundled Waku session template. Recreate the project with the plugin launcher command `waku template copy <dir>` or `node <plugin-root>/scripts/waku-copy-template.mjs <dir>` and migrate the content into it.");
       }
     } catch {
       fail("template.json is not valid JSON.");

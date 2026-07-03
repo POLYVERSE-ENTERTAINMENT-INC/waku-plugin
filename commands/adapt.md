@@ -6,10 +6,11 @@ argument-hint: "[path to the existing game]"
 The user already has a local game/app they want to put on Waku. Use the **waku-adapt** skill. Summary:
 
 1. Ensure login (`waku whoami`; `/waku:login` if needed).
-2. Work on a COPY of their project — don't mutate the original until verified. Create the adaptation workspace from the bundled Waku template first:
+2. Work on a COPY of their project — don't mutate the original until verified. Create the adaptation workspace from the bundled Waku template first with the plugin launcher command:
    ```bash
    waku template copy ./<adapt-dir>
    ```
+   `template copy` is provided by the Waku plugin launcher (`bin/waku`), not the raw upstream CLI at `~/.waku/bin/waku`. If the command is unavailable because the environment bypassed the launcher, run `node <plugin-root>/scripts/waku-copy-template.mjs ./<adapt-dir>` instead.
    Then migrate the original game logic/assets into that template workspace. If the bundled template is unavailable, stop; do not hand-write a replacement shell.
 3. Scan for runtime AI calls and secrets:
    ```bash
