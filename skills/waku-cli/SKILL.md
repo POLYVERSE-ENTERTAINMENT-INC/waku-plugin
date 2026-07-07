@@ -43,7 +43,7 @@ node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public 
 
 在 Codex/local checkouts 中，如果 `CLAUDE_PLUGIN_ROOT` 未设置，用插件仓库里的绝对脚本路径。脚本失败时要先读取 JSON 报告里的 issue code、证据和建议修复，再继续适配；不要退回“普通静态托管”式上传。
 
-插件里的 `bin/waku` 会在调用真实 CLI 前自动执行 conformance + mobile visual host-chrome 两道门禁；手动运行脚本是为了提前看到失败原因；失败会写出 waku-conformance-report.json 或 waku-visual-report.json。不要用真实 CLI 路径绕过插件 launcher。视觉门禁会模拟 Waku 顶部/底部宿主控件，并钻进 same-origin iframe 检查其中按钮、状态卡、提示、面板等可读/可点元素。
+插件里的 `bin/waku` 会在调用真实 CLI 前自动执行 conformance + mobile visual host-chrome 两道门禁；手动运行脚本是为了提前看到失败原因；失败会写出 waku-conformance-report.json 或 waku-visual-report.json。不要用真实 CLI 路径绕过插件 launcher。视觉门禁会模拟 Waku 顶部/底部宿主控件，并钻进 same-origin iframe 检查其中按钮、状态卡、提示、面板等可读/可点元素。视觉门禁优先使用 `WAKU_CHROME_PATH`，然后自动探测 Chrome / Chromium / Edge / Brave / Arc / Chrome for Testing；仍找不到时会通过 Playwright 自动下载 managed Chromium 并复用缓存。只有在设置 `WAKU_NO_BROWSER_DOWNLOAD=1` 或下载失败时，才需要用户手动提供浏览器路径。
 
 禁止用 `waku api` 做 playable 上传、deployment/publication 状态切换、`preview_ready` → `published` 这类发布链路写操作；这些写操作会绕过本地门禁。插件 launcher 会拒绝疑似上传/发布状态 mutation 的 `waku api` 调用。需要上传预览用 `waku playground upload`，需要发 Feed 用 `waku publish`。
 

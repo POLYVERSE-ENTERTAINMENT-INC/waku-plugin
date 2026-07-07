@@ -3,7 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const siteDir = path.resolve(flag("--site-dir", "public"));
@@ -13,7 +13,7 @@ const screenshot = path.resolve(flag("--screenshot", "waku-visual-check.png"));
 const reportPath = path.resolve(flag("--report", path.join(path.dirname(screenshot), "waku-visual-report.json")));
 const hostTopReserve = Number(flag("--host-top-reserve", "56"));
 const hostBottomReserve = Number(flag("--host-bottom-reserve", "82"));
-const chromePath = process.env.WAKU_CHROME_PATH || findChrome();
+const chromePath = await resolveChrome();
 
 class CdpClient {
   constructor(url) {
@@ -60,7 +60,7 @@ if (!fs.existsSync(path.join(siteDir, "index.html"))) {
   die(`Missing ${path.join(siteDir, "index.html")}`);
 }
 if (!chromePath) {
-  die("Chrome/Chromium not found. Set WAKU_CHROME_PATH to enable visual checks.");
+  die("Chromium browser runtime not found and managed Chromium download failed. Set WAKU_CHROME_PATH to a Chromium-family browser binary and rerun the visual gate.");
 }
 
 const server = await serve(siteDir);
@@ -345,7 +345,7 @@ function visualErrorCode(reason = "") {
   if (text.includes("host chrome")) return "visual.host-chrome-overlap";
   if (text.includes("outside .safe-ui") || text.includes("escaped .safe-ui")) return "visual.safe-ui-escape";
   if (text.includes("iframe content is not inspectable")) return "visual.iframe-uninspectable";
-  if (text.includes("chrome/chromium")) return "visual.chrome-missing";
+  if (text.includes("chrome/chromium") || text.includes("chromium browser runtime") || text.includes("managed chromium")) return "visual.chrome-missing";
   if (text.includes("missing")) return "visual.artifact-missing";
   return "visual.failed";
 }
@@ -356,7 +356,7 @@ function visualFix(reason = "") {
     "visual.host-chrome-overlap": "Move readable/tappable UI into .safe-ui and reserve --safe-top/--safe-bottom. Put instructions, pause buttons, HUD, and result panels in DOM safe-area layers, not at raw viewport edges.",
     "visual.safe-ui-escape": "Constrain this element inside .safe-ui/.safe-center or convert it to world-only canvas content if it is not readable/tappable UI.",
     "visual.iframe-uninspectable": "Use a same-origin adapted page or port the legacy UI into React so the gate can verify controls and text avoid host chrome.",
-    "visual.chrome-missing": "Install Chrome/Chromium or set WAKU_CHROME_PATH to a browser binary so the mobile visual gate can run.",
+    "visual.chrome-missing": "The gate could not find or download a Chromium runtime. Connect to the internet and rerun, or set WAKU_CHROME_PATH to Chrome, Chromium, Edge, Brave, Arc, or Chrome for Testing.",
     "visual.artifact-missing": "Build the playable first and point --site-dir at the generated directory that contains index.html.",
     "visual.failed": "Open the screenshot and report, then adjust layout until all readable/tappable UI stays inside the simulated host-safe area.",
   };
@@ -401,7 +401,7 @@ function visualActionForCode(code) {
     "visual.host-chrome-overlap": "Move the listed readable/tappable element away from the simulated Waku top or bottom chrome.",
     "visual.safe-ui-escape": "Constrain the listed element inside .safe-ui/.safe-center or make it world-only canvas content.",
     "visual.iframe-uninspectable": "Make the legacy iframe same-origin/inspectable or port its UI into React safe-area components.",
-    "visual.chrome-missing": "Install Chrome/Chromium or set WAKU_CHROME_PATH, then rerun the visual gate.",
+    "visual.chrome-missing": "Rerun to let Waku download managed Chromium, or set WAKU_CHROME_PATH to an existing Chromium-family browser.",
     "visual.artifact-missing": "Build the playable and point --site-dir at the generated directory.",
   };
   return actions[code] ?? "Open the screenshot and repair layout until all readable/tappable UI stays inside the host-safe area.";
@@ -411,16 +411,103 @@ function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
+async function resolveChrome() {
+  const explicit = process.env.WAKU_CHROME_PATH;
+  if (explicit) return fs.existsSync(explicit) ? explicit : "";
+
+  const local = findChrome();
+  if (local) return local;
+
+  const managed = findManagedChromium();
+  if (managed) return managed;
+
+  if (process.env.WAKU_NO_BROWSER_DOWNLOAD === "1") {
+    return "";
+  }
+
+  console.error("[waku-visual] Chromium-family browser not found; downloading managed Chromium with Playwright...");
+  const install = spawnSync("npm", ["exec", "--yes", "playwright@1.56.1", "--", "install", "chromium"], {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      PLAYWRIGHT_SKIP_BROWSER_GC: process.env.PLAYWRIGHT_SKIP_BROWSER_GC || "1",
+    },
+  });
+  if (install.status !== 0) {
+    console.error("[waku-visual] Managed Chromium download failed.");
+    return "";
+  }
+
+  return findManagedChromium();
+}
+
 function findChrome() {
   const candidates = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "/Applications/Arc.app/Contents/MacOS/Arc",
+    "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
     "/usr/bin/google-chrome",
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge",
+    "/usr/bin/brave-browser",
+    "/snap/bin/chromium",
   ];
   return candidates.find((candidate) => fs.existsSync(candidate)) || "";
+}
+
+function findManagedChromium() {
+  const cacheRoots = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH && process.env.PLAYWRIGHT_BROWSERS_PATH !== "0" ? process.env.PLAYWRIGHT_BROWSERS_PATH : "",
+    path.join(os.homedir(), "Library", "Caches", "ms-playwright"),
+    path.join(os.homedir(), ".cache", "ms-playwright"),
+    path.join(os.homedir(), "AppData", "Local", "ms-playwright"),
+  ].filter(Boolean);
+
+  const executableNames = new Set([
+    "chrome",
+    "chrome.exe",
+    "chromium",
+    "chromium.exe",
+    "Chromium",
+    "Chromium.exe",
+    "headless_shell",
+    "headless_shell.exe",
+  ]);
+
+  for (const cacheRoot of cacheRoots) {
+    const found = findExecutable(cacheRoot, executableNames);
+    if (found) return found;
+  }
+  return "";
+}
+
+function findExecutable(root, executableNames) {
+  if (!fs.existsSync(root)) return "";
+  const stack = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (entry.isFile() && executableNames.has(entry.name)) {
+        return fullPath;
+      }
+    }
+  }
+  return "";
 }
 
 function serve(root) {

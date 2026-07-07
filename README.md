@@ -88,9 +88,12 @@ The visual gate simulates Waku native top/bottom chrome and inspects same-origin
 node "${CLAUDE_PLUGIN_ROOT:-.}/scripts/waku-visual-check.mjs" --site-dir public --screenshot waku-visual-check.png --report waku-visual-report.json
 ```
 
+The visual gate first uses `WAKU_CHROME_PATH`, then local Chromium-family browsers such as Chrome, Chromium, Edge, Brave, Arc, or Chrome for Testing. If none are found, it downloads a Playwright-managed Chromium into the standard Playwright cache and reuses it on later runs. Set `WAKU_NO_BROWSER_DOWNLOAD=1` only when automatic browser downloads are not allowed.
+
 For plugin regression fixtures:
 
 ```
+node scripts/check-packaged-sync.mjs
 node scripts/waku-conformance-fixtures.mjs
 ```
 
