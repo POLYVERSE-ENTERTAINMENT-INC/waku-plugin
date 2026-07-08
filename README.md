@@ -93,6 +93,7 @@ The visual gate first uses `WAKU_CHROME_PATH`, then local Chromium-family browse
 For plugin regression fixtures:
 
 ```
+node scripts/check-plugin-exposure.mjs
 node scripts/check-packaged-sync.mjs
 node scripts/waku-conformance-fixtures.mjs
 ```

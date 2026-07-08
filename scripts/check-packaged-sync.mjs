@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,7 @@ const syncTargets = [
 const failures = [];
 
 validateMcpConfigs();
+validateNoBackendExposure();
 
 for (const target of syncTargets) {
   const sourcePath = path.join(root, target.source);
@@ -147,6 +149,24 @@ function validateMcpConfigs() {
   }
   if (packagedServer.cwd !== ".") {
     failures.push("unexpected packaged MCP cwd: plugins/waku/.mcp.json should set cwd to .");
+  }
+}
+
+function validateNoBackendExposure() {
+  const scriptPath = path.join(root, "scripts", "check-plugin-exposure.mjs");
+  if (!fs.existsSync(scriptPath)) {
+    failures.push("missing exposure check script: scripts/check-plugin-exposure.mjs");
+    return;
+  }
+
+  const result = spawnSync(process.execPath, [scriptPath], {
+    cwd: root,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+    failures.push(`plugin exposure check failed${output ? `:\n${output}` : ""}`);
   }
 }
 
